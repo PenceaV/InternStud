@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-
+import growthImage from '/growth.png';
 
 const features = [
   {
@@ -77,22 +77,32 @@ const Homepage: React.FC = () => {
       </header>
 
       {/* HERO SECTION */}
-      <section className="flex-1 flex items-center justify-center text-center pt-32 pb-20 px-6 bg-gradient-to-b from-[#0056a0] to-[#1B263B] text-white">
-        <div className="max-w-3xl">
+      <section className="flex-1 flex flex-col md:flex-row items-center justify-center text-start pt-32 pb-20 px-6 bg-gradient-to-b from-[#0056a0] to-[#1B263B] text-white relative overflow-hidden">
+        <div className="max-w-3xl z-10">
           <h1 className="text-4xl md:text-6xl font-bold mb-6">Găsește stagii. Fii angajat. Crește rapid.</h1>
           <p className="text-lg md:text-xl mb-8 text-gray-300">
             InternStud este platforma ta completă pentru a te conecta cu companiile, a exersa interviuri și a străluci ca student.
           </p>
-          <div className="flex justify-center space-x-4">
-            <button className="px-6 py-3 bg-[#ff8c00] text-white rounded-full font-semibold hover:bg-white hover:text-[#ff8c00] transition duration-300">
-              Începe acum
-            </button>
-            <button className="px-6 py-3 border border-white text-white rounded-full font-semibold hover:bg-white hover:text-[#ff8c00] transition duration-300">
-              Află mai multe
-            </button>
-          </div>
+        <div className="flex justify-start space-x-4">
+          <button className="w-auto h-auto px-4 py-3 bg-[#ff8c00] text-white  rounded-full hover:bg-white hover:text-[#F2542D] transition duration-300">
+            <p className="text-xl font-bold">Începe acum</p>
+          </button>
         </div>
+
+
+        </div>
+
+        {/* Imagine animată */}
+        <motion.img
+          src={growthImage}
+          alt="Growth"
+          initial={{ x: '100%', opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ duration: 1, ease: 'easeOut' }}
+          className="w-full max-w-md mt-10 md:mt-0 md:ml-10 z-0"
+        />
       </section>
+
 
       <section id="features" className="py-24 px-6 bg-white text-gray-800">
         <motion.div
@@ -164,9 +174,9 @@ const Homepage: React.FC = () => {
             Ai întrebări sau sugestii? Trimite-ne un mesaj și îți vom răspunde cât mai curând!
           </p>
           <form className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
-            <input type="text" placeholder="Nume complet" className="border border-gray-300 p-3 rounded-lg w-full" />
-            <input type="email" placeholder="Email" className="border border-gray-300 p-3 rounded-lg w-full" />
-            <textarea placeholder="Mesaj" className="border border-gray-300 p-3 rounded-lg md:col-span-2 h-32 resize-none w-full"></textarea>
+            <input required type="text" placeholder="Nume complet" className="border border-gray-300 p-3 rounded-lg w-full" />
+            <input required type="email" placeholder="Email" className="border border-gray-300 p-3 rounded-lg w-full" />
+            <textarea required placeholder="Mesaj" className="border border-gray-300 p-3 rounded-lg md:col-span-2 h-32 resize-none w-full"></textarea>
             <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="md:col-span-2 bg-[#F2542D] hover:bg-[#ff7043] text-white py-3 px-6 rounded-lg font-semibold transition">
               Trimite mesajul
             </motion.button>
