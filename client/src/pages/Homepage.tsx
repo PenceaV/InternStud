@@ -1,5 +1,8 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import Navbar from '../components/Navbar';
+import { Link } from 'react-router-dom';
+
 import growthImage from '/growth.png';
 
 const features = [
@@ -25,84 +28,46 @@ const features = [
   },
 ];
 
-const logo = './logo-cropped.svg';
-
 const Homepage: React.FC = () => {
   return (
     <div className="w-full min-h-screen flex flex-col bg-white text-gray-900 font-sans">
-      {/* HEADER */}
-      <header className="fixed top-0 left-0 w-full z-50 bg-white shadow-md px-6 md:px-12 py-4 flex justify-between items-center">
-        <div className="flex items-center space-x-3">
-          <img src={logo} alt="InternStud Logo" className="h-12 w-auto" />
-        </div>
-        <nav className="hidden md:flex space-x-12 text-base font-medium">
-          <a
-            href="#features"
-            className="relative text-[#0056a0] hover:text-[#ff8c00] transition duration-300 after:absolute after:left-0 after:-bottom-1 after:w-0 after:h-[2px] after:bg-[#F2542D] hover:after:w-full after:transition-all after:duration-300"
-          >
-            Funcționalități
-          </a>
-          <a
-            href="#about"
-            className="relative text-[#0056a0] hover:text-[#ff8c00] transition duration-300 after:absolute after:left-0 after:-bottom-1 after:w-0 after:h-[2px] after:bg-[#F2542D] hover:after:w-full after:transition-all after:duration-300"
-          >
-            Despre
-          </a>
-          <a
-            href="#contact"
-            className="relative text-[#0056a0] hover:text-[#ff8c00] transition duration-300 after:absolute after:left-0 after:-bottom-1 after:w-0 after:h-[2px] after:bg-[#F2542D] hover:after:w-full after:transition-all after:duration-300"
-          >
-            Contact
-          </a>
-        </nav>
-
-        <div className="space-x-4 hidden md:flex">
-        <motion.button
-          whileHover={{ scale: 1.05, boxShadow: "0px 0px 12px #0056a0" }}
-          whileTap={{ scale: 0.97 }}
-          className="px-5 py-2 rounded-lg bg-[#0056a0] text-white font-semibold transition duration-300 hover:bg-[#ff7043]"
-        >
-          Autentificare
-        </motion.button>
-
-        <motion.button
-          whileHover={{ scale: 1.05, boxShadow: "0px 0px 12px #ff7043" }}
-          whileTap={{ scale: 0.97 }}
-          className="px-5 py-2 rounded-lg bg-[#F2542D] text-white font-semibold transition duration-300 hover:bg-[#ff7043]"
-        >
-          Înregistrare
-        </motion.button>
-      </div>
-
-      </header>
+      <Navbar />
 
       {/* HERO SECTION */}
-      <section className="flex-1 flex flex-col md:flex-row items-center justify-center text-start pt-32 pb-20 px-6 bg-gradient-to-b from-[#0056a0] to-[#1B263B] text-white relative overflow-hidden">
+      <section className="flex-1 flex flex-col md:flex-row items-center justify-center text-center md:text-start pt-32 pb-20 px-6 bg-gradient-to-b from-[#0056a0] to-[#1B263B] text-white relative overflow-hidden">
         <div className="max-w-3xl z-10">
-          <h1 className="text-4xl md:text-6xl font-bold mb-6">Găsește stagii. Fii angajat. Crește rapid.</h1>
+          <h1 className="text-4xl md:text-6xl font-bold mb-6">Găsește stagii. <br /> Crește rapid.</h1>
           <p className="text-lg md:text-xl mb-8 text-gray-300">
             InternStud este platforma ta completă pentru a te conecta cu companiile, a exersa interviuri și a străluci ca student.
           </p>
-        <div className="flex justify-start space-x-4">
-          <button className="w-auto h-auto px-4 py-3 bg-[#ff8c00] text-white  rounded-full hover:bg-white hover:text-[#F2542D] transition duration-300">
-            <p className="text-xl font-bold">Începe acum</p>
-          </button>
+          <div className="flex justify-center md:justify-start space-x-4">
+            <Link to="/register">
+              <button className="w-auto h-auto px-4 py-3 bg-[#ff8c00] text-white rounded-full hover:bg-white hover:text-[#F2542D] transition duration-300 font-bold text-xl">
+                Începe acum
+              </button>
+            </Link>
+          </div>
         </div>
 
-
+        {/* Imagine statică pentru mobil, animată pentru desktop */}
+        <div className="w-full max-w-md mt-10 md:mt-0 md:ml-10 z-0">
+          {/* Versiunea mobilă - fără animație */}
+          <img
+            src={growthImage}
+            alt="Growth"
+            className="md:hidden w-full"
+          />
+          {/* Versiunea desktop - cu animație */}
+          <motion.img
+            src={growthImage}
+            alt="Growth"
+            initial={{ x: '100%', opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ duration: 1, ease: 'easeOut' }}
+            className="hidden md:block w-full"
+          />
         </div>
-
-        {/* Imagine animată */}
-        <motion.img
-          src={growthImage}
-          alt="Growth"
-          initial={{ x: '100%', opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          transition={{ duration: 1, ease: 'easeOut' }}
-          className="w-full max-w-md mt-10 md:mt-0 md:ml-10 z-0"
-        />
       </section>
-
 
       <section id="features" className="py-24 px-6 bg-white text-gray-800">
         <motion.div
@@ -146,7 +111,6 @@ const Homepage: React.FC = () => {
             </motion.div>
           ))}
         </div>
-
       </section>
 
       <section id="about" className="py-24 px-6 bg-gray-100 text-gray-800">
