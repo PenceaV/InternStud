@@ -2,17 +2,27 @@ import React, { useState, useEffect } from 'react';
 import { db, auth } from '../firebaseConfig';
 import { collection, query, getDocs, doc, getDoc } from 'firebase/firestore';
 import { useAuthState } from 'react-firebase-hooks/auth';
-import { FaUserGraduate, FaHome, FaBriefcase, FaUserCircle, FaRocket, FaCog, FaPowerOff, FaFilter } from 'react-icons/fa';
+import { FaUserGraduate, FaHome, FaBriefcase, FaUserCircle, FaRocket, FaCog, FaPowerOff, FaFilter, FaBuilding } from 'react-icons/fa';
 import { signOut } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
 import LoadingSpinner from '../components/LoadingSpinner';
 import CreateAnnouncementForm from '../components/CreateAnnouncementForm';
+import { Timestamp } from 'firebase/firestore';
+import AnnouncementDetailsModal from '../components/AnnouncementDetailsModal';
 
 interface Announcement {
   id: string;
   title: string;
   companyName: string;
-  // Add other announcement fields as needed (e.g., description, location, type)
+  description: string;
+  location: string;
+  jobType: string;
+  salary?: string; // Optional
+  requirements: string;
+  benefits?: string; // Optional
+  applicationDeadline: Timestamp;
+  companyId: string;
+  createdAt: Timestamp;
 }
 
 const Dashboard: React.FC = () => {
@@ -33,6 +43,13 @@ const Dashboard: React.FC = () => {
   const [activeCompanyFilter, setActiveCompanyFilter] = useState('Toate Companiile');
 
   const [dashboardContent, setDashboardContent] = useState<'announcementsList' | 'createAnnouncement'>('announcementsList'); // State to control main content
+
+  // State for announcement details modal
+  const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
+  const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
+
+  // State for successful announcement creation message
+  const [announcementAddedSuccess, setAnnouncementAddedSuccess] = useState(false);
 
   // Handle user logout
   const handleLogout = async () => {
@@ -146,6 +163,24 @@ const Dashboard: React.FC = () => {
     return <div className="min-h-screen flex items-center justify-center"><LoadingSpinner /></div>;
   }
 
+  // Function to format Firestore Timestamp to a readable date string
+  const formatDate = (timestamp: Timestamp) => {
+    const date = timestamp.toDate();
+    return date.toLocaleDateString('ro-RO'); // Format as DD/MM/YYYY
+  };
+
+  // Function to handle clicking "Detalii" button
+  const handleViewDetails = (announcement: Announcement) => {
+    setSelectedAnnouncement(announcement);
+    setShowAnnouncementModal(true);
+  };
+
+  // Function to close the details modal
+  const handleCloseModal = () => {
+    setSelectedAnnouncement(null);
+    setShowAnnouncementModal(false);
+  };
+
   // Placeholder UI based on the provided image style
   return (
     <div className="min-h-screen bg-gray-200 flex antialiased">
@@ -198,13 +233,13 @@ const Dashboard: React.FC = () => {
            ) : userType === 'company' ? (
                <>
                    {/* Company Specific Links */}
-                   <a href="#" className={`flex items-center space-x-3 py-2.5 px-4 rounded transition duration-200 hover:bg-[#0056a0] ${dashboardContent === 'announcementsList' ? 'bg-[#0056a0] text-white' : 'text-gray-300'}`}
+                   <a href="#" className={`flex items-center space-x-3 py-2.5 px-4 rounded transition duration-200 hover:bg-[#0056a0] ${dashboardContent === 'announcementsList' ? 'bg-[#0056a0]' : 'text-gray-300'}`}
                      onClick={(e) => { e.preventDefault(); setDashboardContent('announcementsList'); }}>
-                     <FaBriefcase className="text-xl text-gray-400" /><span>Anunțurile Mele</span> {/* Changed text */}
+                     <FaBriefcase className={`text-xl ${dashboardContent === 'announcementsList' ? 'text-white' : 'text-gray-400'}`} /><span>Anunțurile Mele</span> {/* Changed text and icon color */}
                    </a>
-                   <a href="#" className={`flex items-center space-x-3 py-2.5 px-4 rounded transition duration-200 hover:bg-[#0056a0] ${dashboardContent === 'createAnnouncement' ? 'bg-[#0056a0] text-white' : 'text-gray-300'}`}
+                   <a href="#" className={`flex items-center space-x-3 py-2.5 px-4 rounded transition duration-200 hover:bg-[#0056a0] ${dashboardContent === 'createAnnouncement' ? 'bg-[#0056a0]' : 'text-gray-300'}`}
                      onClick={(e) => { e.preventDefault(); setDashboardContent('createAnnouncement'); }}>
-                     <FaBriefcase className="text-xl text-gray-400" /><span>Adaugă Anunț Nou</span> {/* New link */}
+                     <FaBriefcase className={`text-xl ${dashboardContent === 'createAnnouncement' ? 'text-white' : 'text-gray-400'}`} /><span>Adaugă Anunț Nou</span> {/* New link and icon color */}
                    </a>
                </>
            ) : null /* Handle other user types or loading state */}
@@ -227,6 +262,18 @@ const Dashboard: React.FC = () => {
           {dashboardContent === 'announcementsList' ? (
             <>
               <h1 className="text-2xl font-bold text-[#1B263B] mb-6">Anunțuri de Joburi</h1>
+
+              {/* Success Message Placeholder */}
+              {announcementAddedSuccess && (
+                <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-6">
+                  <strong className="font-bold">Succes!</strong>
+                  <span className="block sm:inline ml-2">Anunțul a fost adăugat cu succes!</span>
+                  <span className="absolute top-0 bottom-0 right-0 px-4 py-3">
+                    <svg className="fill-current h-6 w-6 text-green-500" role="button" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" onClick={() => setAnnouncementAddedSuccess(false)}><title>Close</title><path d="M14.348 14.849a1.2 1.2 0 0 1-1.697 0L10 11.819l-2.651 3.03a1.2 1.2 0 1 1-1.697-1.697l2.758-3.15L6.303 6.849a1.2 1.2 0 0 1 1.697-1.697L10 8.183l2.651-3.03a1.2 1.2 0 1 1 1.697 1.697l-2.758 3.15 2.758 3.15a1.2 1.2 0 0 1 0 1.698z"/></svg>
+                  </span>
+                </div>
+              )}
+
               {/* Tabs Placeholder */}
               <div className="flex border-b border-gray-200 mb-6">
                 <button className="py-2 px-4 text-[#0056a0] border-b-2 border-[#0056a0] font-semibold focus:outline-none">Toate</button>
@@ -297,21 +344,57 @@ const Dashboard: React.FC = () => {
                     const matchesCompany = activeCompanyFilter === 'Toate Companiile' || announcement.companyName === activeCompanyFilter;
                     return matchesSearch && matchesCompany;
                   }).map((announcement) => (
-                    <div key={announcement.id} className="bg-white p-6 rounded-lg shadow-md">
-                      <h3 className="text-lg font-semibold text-[#1B263B]">{announcement.title}</h3>
-                      <p className="text-gray-600">Company: {announcement.companyName}</p>
-                      {/* Add more announcement details */}
+                    <div key={announcement.id} className="bg-white p-6 rounded-lg shadow-md flex flex-col"> {/* Changed to flex-col */}
+                      {/* Announcement Title (Centered at the top) */}
+                      <h3 className="text-xl font-semibold text-[#1B263B] mb-4 text-center">{announcement.title}</h3> {/* Centered and added margin-bottom */}
+
+                      {/* Company Icon and Name Area (using flex for horizontal layout) */}
+                      <div className="flex items-start space-x-4">
+                        {/* Larger Company Icon Circle */}
+                        <div className="flex-shrink-0 w-16 h-16 rounded-full bg-[#004080] flex items-center justify-center text-3xl text-white"> {/* Adjusted size and color */}
+                          <FaBuilding />
+                        </div>
+                        {/* Company Name */}
+                        <div>
+                           <p className="text-xl font-bold text-[#1B263B] leading-tight">{announcement.companyName}</p> {/* Company name larger and bold */}
+                        </div>
+                      </div>
+
+                      {/* Announcement Details Area (Remaining space) */}
+                      <div className="flex-1 mt-4"> {/* Added margin-top */}
+                        {/* Display application deadline */}
+                        <p className="text-gray-600 text-sm mt-1">Data limită aplicare: {formatDate(announcement.applicationDeadline)}</p>
+                        {/* Add more announcement details */}
+
+                        {/* Details Button */}
+                        <div className="mt-4">
+                          <button
+                            className="px-4 py-2 bg-[#0056a0] text-white rounded-md hover:bg-[#003f7a] transition-colors text-sm"
+                            onClick={() => handleViewDetails(announcement)}
+                          >
+                            Detalii
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
               )}
             </>
           ) : dashboardContent === 'createAnnouncement' && userType === 'company' ? (
-            <CreateAnnouncementForm />
+            <CreateAnnouncementForm onAnnouncementAdded={() => { setAnnouncementAddedSuccess(true); setDashboardContent('announcementsList'); }} />
           ) : (
             <div className="text-center text-gray-600 text-xl mt-10 p-6 bg-white rounded-lg shadow-sm">
               <p>Selectați o opțiune din meniul lateral.</p> {/* Fallback message */}
             </div>
+          )}
+
+          {/* Announcement Details Modal */}
+          {showAnnouncementModal && selectedAnnouncement && (
+            <AnnouncementDetailsModal
+              announcement={selectedAnnouncement}
+              onClose={handleCloseModal}
+            />
           )}
         </div>
       </div>

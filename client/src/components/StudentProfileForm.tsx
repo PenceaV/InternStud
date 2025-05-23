@@ -4,6 +4,8 @@ import { auth, db, storage } from '../firebaseConfig';
 import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import { FaCamera, FaUpload, FaUserGraduate, FaLinkedin, FaGithub, FaLink, FaBriefcase, FaGraduationCap, FaTools } from 'react-icons/fa'; // Added camera, upload, user graduate icons back
+import DatePicker from 'react-datepicker';
+import "react-datepicker/dist/react-datepicker.css";
 
 interface StudentProfileFormProps {
   userType?: 'student'; // Define userType prop as optional, since it might not always be 'student'
@@ -12,16 +14,16 @@ interface StudentProfileFormProps {
 interface ExperienceEntry {
   title: string;
   company: string;
-  startDate: string;
-  endDate: string;
+  startDate: Date | null;
+  endDate: Date | null;
   isPresent: boolean;
 }
 
 interface EducationEntry {
   university: string;
   specialization: string;
-  startDate: string;
-  endDate: string;
+  startDate: Date | null;
+  endDate: Date | null;
 }
 
 const StudentProfileForm: React.FC<StudentProfileFormProps> = ({ userType }) => {
@@ -42,10 +44,10 @@ const StudentProfileForm: React.FC<StudentProfileFormProps> = ({ userType }) => 
   const [education, setEducation] = useState<EducationEntry[]>([{ 
     university: '', 
     specialization: '', 
-    startDate: '', 
-    endDate: ''
+    startDate: null, 
+    endDate: null
   }]);
-  const [experience, setExperience] = useState<ExperienceEntry[]>([{ title: '', company: '', startDate: '', endDate: '', isPresent: false }]); // Updated state for experience to include dates and isPresent
+  const [experience, setExperience] = useState<ExperienceEntry[]>([{ title: '', company: '', startDate: null, endDate: null, isPresent: false }]); // Updated state for experience to include dates and isPresent
   const [skills, setSkills] = useState<string[]>(['']); // Array of strings for skills
   const [linkedin, setLinkedin] = useState('');
   const [github, setGithub] = useState('');
@@ -61,8 +63,8 @@ const StudentProfileForm: React.FC<StudentProfileFormProps> = ({ userType }) => 
           const data = docSnap.data();
           setBio(data.bio || '');
           setProfileImageUrl(data.profileImageUrl || null);
-          setEducation(data.education || [{ university: '', specialization: '', startDate: '', endDate: '' }]);
-          setExperience(data.experience || [{ title: '', company: '', startDate: '', endDate: '', isPresent: false }]);
+          setEducation(data.education || [{ university: '', specialization: '', startDate: null, endDate: null }]);
+          setExperience(data.experience || [{ title: '', company: '', startDate: null, endDate: null, isPresent: false }]);
           setSkills(data.skills || ['']);
           setLinkedin(data.linkedin || '');
           setGithub(data.github || '');
@@ -70,6 +72,21 @@ const StudentProfileForm: React.FC<StudentProfileFormProps> = ({ userType }) => 
           // Set initial first and last name from fetched data
           setFirstName(data.firstName || '');
           setLastName(data.lastName || '');
+          // Convert date strings to Date objects if they exist
+          if (data.education) {
+            setEducation(data.education.map((edu: EducationEntry) => ({
+              ...edu,
+              startDate: edu.startDate ? new Date(edu.startDate) : null,
+              endDate: edu.endDate ? new Date(edu.endDate) : null,
+            })));
+          }
+          if (data.experience) {
+             setExperience(data.experience.map((exp: ExperienceEntry) => ({
+               ...exp,
+               startDate: exp.startDate ? new Date(exp.startDate) : null,
+               endDate: exp.endDate ? new Date(exp.endDate) : null,
+             })));
+           }
         }
       }
     };
@@ -86,13 +103,13 @@ const StudentProfileForm: React.FC<StudentProfileFormProps> = ({ userType }) => 
   const handleAddEducation = () => setEducation([...education, { 
     university: '', 
     specialization: '', 
-    startDate: '', 
-    endDate: ''
+    startDate: null,
+    endDate: null,
   }]);
   
-  const handleEducationChange = (index: number, field: keyof EducationEntry, value: string) => {
+  const handleEducationChange = (index: number, field: keyof EducationEntry, value: string | Date | null) => {
     const newEducation = [...education];
-    newEducation[index][field] = value;
+    (newEducation[index][field] as any) = value; // Use any for now to handle string/Date
     setEducation(newEducation);
   };
 
@@ -102,8 +119,8 @@ const StudentProfileForm: React.FC<StudentProfileFormProps> = ({ userType }) => 
   };
 
   // Handlers for experience with dates and isPresent
-  const handleAddExperience = () => setExperience([...experience, { title: '', company: '', startDate: '', endDate: '', isPresent: false }]);
-  const handleExperienceChange = (index: number, field: keyof ExperienceEntry, value: string | boolean) => {
+  const handleAddExperience = () => setExperience([...experience, { title: '', company: '', startDate: null, endDate: null, isPresent: false }]);
+  const handleExperienceChange = (index: number, field: keyof ExperienceEntry, value: string | boolean | Date | null) => {
     const newExperience = [...experience];
     (newExperience[index][field] as any) = value; // Use any for boolean assignment
     setExperience(newExperience);
@@ -164,8 +181,16 @@ const StudentProfileForm: React.FC<StudentProfileFormProps> = ({ userType }) => 
         bio: bio,
         profileImageUrl: profileImageUrl,
         cvUrl: null, // Set CV URL to null as feature is removed temporarily
-        education: education.filter(edu => edu.university.trim() !== '' || edu.specialization.trim() !== ''), // Save non-empty entries
-        experience: experience.filter(exp => exp.title.trim() !== '' || exp.company.trim() !== ''), // Filter out empty experience entries
+        education: education.map(edu => ({
+            ...edu,
+            startDate: edu.startDate ? edu.startDate.toISOString() : '', // Convert Date to string
+            endDate: edu.endDate ? edu.endDate.toISOString() : '', // Convert Date to string
+        })).filter(edu => edu.university.trim() !== '' || edu.specialization.trim() !== ''), // Save non-empty entries after conversion
+        experience: experience.map(exp => ({
+            ...exp,
+            startDate: exp.startDate ? exp.startDate.toISOString() : '', // Convert Date to string
+            endDate: exp.endDate ? exp.endDate.toISOString() : '', // Convert Date to string
+        })).filter(exp => exp.title.trim() !== '' || exp.company.trim() !== ''), // Filter out empty experience entries after conversion
         skills: skills.filter(skill => skill.trim() !== ''), // Save non-empty entries
         linkedin: linkedin,
         github: github,
@@ -239,8 +264,8 @@ const StudentProfileForm: React.FC<StudentProfileFormProps> = ({ userType }) => 
                         placeholder="Nume"
                       />
                     </div>
-                    {/* Save Button */}
-                    <div>
+                    {/* Edit/Save Button (Moved below name inputs) */}
+                     <div>
                       <button type="button" onClick={handleSaveName} className="text-sm text-[#0056a0] hover:underline focus:outline-none focus:ring-0">Salvează</button>
                     </div>
                   </div>
@@ -307,25 +332,25 @@ const StudentProfileForm: React.FC<StudentProfileFormProps> = ({ userType }) => 
                   />
                 </div>
                 {/* Dates */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label htmlFor={`education-startDate-${index}`} className="block text-sm font-medium text-[#1B263B]">Data Începerii</label>
-                    <input
-                      id={`education-startDate-${index}`}
-                      type="date"
-                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-[#0056a0] focus:border-[#0056a0] text-gray-800 bg-white"
-                      value={entry.startDate}
-                      onChange={(e) => handleEducationChange(index, 'startDate', e.target.value)}
+                    <label className="block text-sm font-medium text-gray-700">Data Început</label>
+                    <DatePicker
+                      selected={entry.startDate}
+                      onChange={(date: Date | null) => handleEducationChange(index, 'startDate', date)}
+                      dateFormat="dd/MM/yyyy"
+                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-[#0056a0] focus:border-[#0056a0] text-gray-900"
+                      placeholderText="dd/mm/yyyy"
                     />
                   </div>
                   <div>
-                    <label htmlFor={`education-endDate-${index}`} className="block text-sm font-medium text-[#1B263B]">Data Terminării</label>
-                    <input
-                      id={`education-endDate-${index}`}
-                      type="date"
-                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-[#0056a0] focus:border-[#0056a0] text-gray-800 bg-white"
-                      value={entry.endDate}
-                      onChange={(e) => handleEducationChange(index, 'endDate', e.target.value)}
+                    <label className="block text-sm font-medium text-gray-700">Data Sfârșit</label>
+                    <DatePicker
+                      selected={entry.endDate}
+                      onChange={(date: Date | null) => handleEducationChange(index, 'endDate', date)}
+                      dateFormat="dd/MM/yyyy"
+                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-[#0056a0] focus:border-[#0056a0] text-gray-900"
+                      placeholderText="dd/mm/yyyy"
                     />
                   </div>
                 </div>
@@ -368,28 +393,25 @@ const StudentProfileForm: React.FC<StudentProfileFormProps> = ({ userType }) => 
                     />
                  </div>
                  {/* Dates */}
-                 <div className="grid grid-cols-2 gap-4">
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                    <div>
-                      <label htmlFor={`experience-startDate-${index}`} className="block text-sm font-medium text-[#1B263B]">Data Începerii</label>
-                      <input
-                        id={`experience-startDate-${index}`}
-                        type="date"
-                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-[#0056a0] focus:border-[#0056a0] text-gray-800 bg-white"
-                        value={entry.startDate}
-                        onChange={(e) => handleExperienceChange(index, 'startDate', e.target.value)}
+                      <label className="block text-sm font-medium text-gray-700">Data Început</label>
+                      <DatePicker
+                        selected={entry.startDate}
+                        onChange={(date: Date | null) => handleExperienceChange(index, 'startDate', date)}
+                        dateFormat="dd/MM/yyyy"
+                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-[#0056a0] focus:border-[#0056a0] text-gray-900"
+                        placeholderText="dd/mm/yyyy"
                       />
                    </div>
                     <div>
-                       <label htmlFor={`experience-endDate-${index}`} className="block text-sm font-medium text-[#1B263B]">Data Terminării</label>
-                       <input
-                         id={`experience-endDate-${index}`}
-                         type="date"
-                         className={`mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-[#0056a0] focus:border-[#0056a0] text-gray-800 bg-white ${
-                           entry.isPresent ? 'bg-gray-100 opacity-50 cursor-not-allowed' : ''
-                         }`}
-                         value={entry.endDate}
-                         onChange={(e) => handleExperienceChange(index, 'endDate', e.target.value)}
-                         disabled={entry.isPresent}
+                       <label className="block text-sm font-medium text-gray-700">Data Sfârșit</label>
+                       <DatePicker
+                         selected={entry.endDate}
+                         onChange={(date: Date | null) => handleExperienceChange(index, 'endDate', date)}
+                         dateFormat="dd/MM/yyyy"
+                         className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-[#0056a0] focus:border-[#0056a0] text-gray-900"
+                         placeholderText="dd/mm/yyyy"
                        />
                     </div>
                  </div>
