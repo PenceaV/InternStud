@@ -2,7 +2,10 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import Navbar from '../components/Navbar';
 import { FaArrowLeft, FaUserGraduate, FaBuilding } from 'react-icons/fa';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
+import { auth, db } from '../firebaseConfig';
 
 const Register: React.FC = () => {
   const [userType, setUserType] = useState<'student' | 'company' | null>(null);
@@ -15,10 +18,26 @@ const Register: React.FC = () => {
     confirmPassword: '',
     faculty: '',
     // Company fields
-    companyName: '',
     email: '',
-    website: '',
   });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+
+  const firebaseAuthErrors: { [key: string]: string } = {
+    'auth/email-already-in-use': 'Adresa de email este deja utilizată.',
+    'auth/invalid-email': 'Adresa de email este invalidă.',
+    'auth/operation-not-allowed': 'Operația nu este permisă.',
+    'auth/weak-password': 'Parola este prea slabă.',
+    'auth/configuration-not-found': 'Configurarea autentificării Firebase nu a fost găsită.',
+    'auth/network-request-failed': 'Cererea de rețea a eșuat. Verifică-ți conexiunea.',
+    'auth/internal-error': 'A apărut o eroare internă a serverului de autentificare.',
+    // Adaugă aici alte coduri de eroare comune Firebase Authentication
+  };
+
+  const translateFirebaseAuthError = (errorCode: string): string => {
+    return firebaseAuthErrors[errorCode] || `A apărut o eroare Firebase: ${errorCode}.`;
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -28,10 +47,57 @@ const Register: React.FC = () => {
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement form submission logic
-    console.log('Form submitted:', formData);
+    setError('');
+    setLoading(true);
+
+    if (formData.password !== formData.confirmPassword) {
+      setError('Parolele nu coincid!');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      // Creare utilizator in Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        userType === 'student' ? formData.institutionalEmail : formData.email,
+        formData.password
+      );
+      const user = userCredential.user;
+
+      // Salvare detalii suplimentare in Firestore
+      const userDocRef = doc(db, 'users', user.uid);
+      const userData: any = {
+        userType: userType,
+        email: user.email,
+        profileCompleted: false,
+      };
+
+      if (userType === 'student') {
+        userData.firstName = formData.firstName;
+        userData.lastName = formData.lastName;
+        userData.institutionalEmail = formData.institutionalEmail;
+        userData.faculty = formData.faculty;
+      } else {
+        // Removed companyName and website from userData
+        // userData.companyName = formData.companyName;
+        // userData.website = formData.website;
+      }
+
+      await setDoc(userDocRef, userData);
+
+      // Redirectionare dupa inregistrare catre pagina de creare profil
+      navigate('/create-profile');
+
+    } catch (err: any) {
+      // Gestionarea erorilor Firebase Auth si Firestore
+      console.error("Firebase Error:", err.message);
+      setError(translateFirebaseAuthError(err.code) || 'A apărut o eroare la înregistrare');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -54,18 +120,18 @@ const Register: React.FC = () => {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => setUserType('student')}
-                  className="w-full py-4 px-6 bg-[#1B1B1B] text-white rounded-lg font-semibold text-lg hover:bg-[#222] transition-colors shadow-md flex items-center justify-center gap-3"
+                  className="w-full py-4 px-6 bg-[#1B263B] text-white rounded-lg font-semibold text-lg hover:bg-[#1B263B] transition-colors shadow-md flex items-center justify-center gap-3"
                 >
-                  <FaUserGraduate className="text-2xl" />
+                  <FaUserGraduate size={24} />
                   Student
                 </motion.button>
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => setUserType('company')}
-                  className="w-full py-4 px-6 bg-[#1B1B1B] text-white rounded-lg font-semibold text-lg hover:bg-[#222] transition-colors shadow-md flex items-center justify-center gap-3"
+                  className="w-full py-4 px-6 bg-[#1B263B] text-white rounded-lg font-semibold text-lg hover:bg-[#1B263B] transition-colors shadow-md flex items-center justify-center gap-3"
                 >
-                  <FaBuilding className="text-2xl" />
+                  <FaBuilding size={24} />
                   Companie
                 </motion.button>
               </div>
@@ -81,6 +147,11 @@ const Register: React.FC = () => {
               <h2 className="text-2xl font-bold text-[#1B263B] mb-6">
                 {userType === 'student' ? 'Înregistrare Student' : 'Înregistrare Companie'}
               </h2>
+              {error && (
+                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded mb-4 text-center">
+                  {error}
+                </div>
+              )}
               <form onSubmit={handleSubmit} className="space-y-4">
                 {userType === 'student' ? (
                   // Student Form
@@ -95,7 +166,7 @@ const Register: React.FC = () => {
                           required
                           value={formData.firstName}
                           onChange={handleInputChange}
-                          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-[#0056a0] focus:border-[#0056a0] text-black placeholder-gray-400"
+                          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-[#0056a0] focus:border-[#0056a0] text-black placeholder-gray-400 bg-white"
                         />
                       </div>
                       <div>
@@ -107,7 +178,7 @@ const Register: React.FC = () => {
                           required
                           value={formData.lastName}
                           onChange={handleInputChange}
-                          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-[#0056a0] focus:border-[#0056a0] text-black placeholder-gray-400"
+                          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-[#0056a0] focus:border-[#0056a0] text-black placeholder-gray-400 bg-white"
                         />
                       </div>
                     </div>
@@ -120,7 +191,7 @@ const Register: React.FC = () => {
                         required
                         value={formData.institutionalEmail}
                         onChange={handleInputChange}
-                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-[#0056a0] focus:border-[#0056a0] text-black placeholder-gray-400"
+                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-[#0056a0] focus:border-[#0056a0] text-black placeholder-gray-400 bg-white"
                       />
                     </div>
                     <div>
@@ -132,25 +203,13 @@ const Register: React.FC = () => {
                         required
                         value={formData.faculty}
                         onChange={handleInputChange}
-                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-[#0056a0] focus:border-[#0056a0] text-black placeholder-gray-400"
+                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-[#0056a0] focus:border-[#0056a0] text-black placeholder-gray-400 bg-white"
                       />
                     </div>
                   </>
                 ) : (
                   // Company Form
                   <>
-                    <div>
-                      <label htmlFor="companyName" className="block text-sm font-medium text-[#1B263B]">Nume Companie <span className="text-red-500">*</span></label>
-                      <input
-                        type="text"
-                        name="companyName"
-                        id="companyName"
-                        required
-                        value={formData.companyName}
-                        onChange={handleInputChange}
-                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-[#0056a0] focus:border-[#0056a0] text-black placeholder-gray-400"
-                      />
-                    </div>
                     <div>
                       <label htmlFor="email" className="block text-sm font-medium text-[#1B263B]">Email <span className="text-red-500">*</span></label>
                       <input
@@ -160,18 +219,7 @@ const Register: React.FC = () => {
                         required
                         value={formData.email}
                         onChange={handleInputChange}
-                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-[#0056a0] focus:border-[#0056a0] text-black placeholder-gray-400"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="website" className="block text-sm font-medium text-[#1B263B]">Website</label>
-                      <input
-                        type="url"
-                        name="website"
-                        id="website"
-                        value={formData.website}
-                        onChange={handleInputChange}
-                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-[#0056a0] focus:border-[#0056a0] text-black placeholder-gray-400"
+                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-[#0056a0] focus:border-[#0056a0] text-black placeholder-gray-400 bg-white"
                       />
                     </div>
                   </>
@@ -188,11 +236,11 @@ const Register: React.FC = () => {
                       required
                       value={formData.password}
                       onChange={handleInputChange}
-                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-[#0056a0] focus:border-[#0056a0] text-black placeholder-gray-400"
+                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-[#0056a0] focus:border-[#0056a0] text-black placeholder-gray-400 bg-white"
                     />
                   </div>
                   <div>
-                    <label htmlFor="confirmPassword" className="block text-sm font-medium text-[#1B263B]">Verificare Parolă <span className="text-red-500">*</span></label>
+                    <label htmlFor="confirmPassword" className="block text-sm font-medium text-[#1B263B]">Confirmă Parola <span className="text-red-500">*</span></label>
                     <input
                       type="password"
                       name="confirmPassword"
@@ -200,28 +248,29 @@ const Register: React.FC = () => {
                       required
                       value={formData.confirmPassword}
                       onChange={handleInputChange}
-                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-[#0056a0] focus:border-[#0056a0] text-black placeholder-gray-400"
+                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-[#0056a0] focus:border-[#0056a0] text-black placeholder-gray-400 bg-white"
                     />
                   </div>
                 </div>
 
                 <div className="flex items-center justify-between pt-4">
                   <motion.button
-                    whileHover={{ scale: 1.05 }}
+                    whileHover={{ scale: 1.05, backgroundColor: '#003f7a', boxShadow: '0px 0px 15px rgba(0,0,0,0.3)' }}
                     whileTap={{ scale: 0.97 }}
                     type="button"
                     onClick={() => setUserType(null)}
-                    className="flex items-center gap-2 px-5 py-2 rounded-full bg-[#1B263B] text-white font-semibold shadow-md hover:bg-[#0056a0] transition-colors"
+                    className="w-auto h-auto px-3 py-2 bg-[#0056a0] text-white rounded-full transition duration-300 font-bold text-xl shadow-lg flex items-center justify-center gap-2"
                   >
-                    <FaArrowLeft className="text-lg !scale-100" />
+                    <FaArrowLeft size={20} />
                   </motion.button>
                   <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
+                    whileHover={{ scale: 1.05, backgroundColor: '#003f7a', boxShadow: '0px 0px 15px rgba(0,0,0,0.3)' }}
+                    whileTap={{ scale: 0.97 }}
                     type="submit"
-                    className="bg-[#F2542D] text-white px-6 py-2 rounded-md font-medium hover:bg-[#ff7043] transition-colors shadow-md"
+                    className="w-auto h-auto px-3 py-2 bg-[#0056a0] text-white rounded-full transition duration-300 font-bold shadow-lg"
+                    disabled={loading}
                   >
-                    Înregistrare
+                    {loading ? 'Se procesează...' : 'Înregistrare'}
                   </motion.button>
                 </div>
               </form>

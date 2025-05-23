@@ -1,17 +1,32 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { useAuthState } from 'react-firebase-hooks/auth';
+import { auth } from '../firebaseConfig';
+import { signOut } from 'firebase/auth';
 
 const logo = './logo-cropped.svg';
 
 const Navbar: React.FC = () => {
   const location = useLocation();
   const isHomepage = location.pathname === '/';
+  const [user, loading, error] = useAuthState(auth);
+  const navigate = useNavigate();
 
   const scrollToSection = (sectionId: string) => {
     const element = document.getElementById(sectionId);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      // Redirecționează către pagina principală sau de login după deconectare
+      navigate('/'); 
+    } catch (error) {
+      console.error("Eroare la deconectare:", error);
     }
   };
 
@@ -57,25 +72,39 @@ const Navbar: React.FC = () => {
 
       {/* Desktop Buttons */}
       <div className="space-x-4 flex">
-        <Link to="/login">
+        {user ? (
+          // Utilizatorul este logat: afișează butonul Deconectare
           <motion.button
-            whileHover={{ scale: 1.05, boxShadow: "0px 0px 12px #0056a0" }}
+            whileHover={{ scale: 1.05, boxShadow: "0px 0px 12px rgba(0,0,0,0.2)" }} // Ajustează boxShadow dacă este necesar
             whileTap={{ scale: 0.97 }}
-            className="px-5 py-2 rounded-lg bg-[#0056a0] text-white font-semibold transition duration-300 hover:bg-[#ff7043]"
+            onClick={handleLogout}
+            className="px-5 py-2 rounded-lg bg-[#1B263B] text-white font-semibold transition duration-300 hover:bg-[#222]"
           >
-            Autentificare
+            Deconectare
           </motion.button>
-        </Link>
+        ) : (
+          // Utilizatorul nu este logat: afișează butoanele Autentificare și Înregistrare
+          <>
+            <Link to="/login">
+              <motion.button
+                whileHover={{ scale: 1.05, boxShadow: "0px 0px 12px #0056a0" }}
+                whileTap={{ scale: 0.97 }}
+                className="px-5 py-2 rounded-lg bg-[#1B263B] text-white font-semibold transition duration-300"
+              >
+                Autentificare
+              </motion.button>
+            </Link>
 
-        <Link to="/register">
-          <motion.button
-            whileHover={{ scale: 1.05, boxShadow: "0px 0px 12px #ff7043" }}
-            whileTap={{ scale: 0.97 }}
-            className="px-5 py-2 rounded-lg bg-[#F2542D] text-white font-semibold transition duration-300 hover:bg-[#ff7043]"
-          >
-            Înregistrare
-          </motion.button>
-        </Link>
+            <Link to="/register">
+              <motion.button
+                whileHover={{ scale: 1.05, boxShadow: "0px 0px 12px #ff7043" }}
+                whileTap={{ scale: 0.97 }}
+                className="px-5 py-2 rounded-lg bg-[#1B263B] text-white font-semibold transition duration-300">
+                Înregistrare
+              </motion.button>
+            </Link>
+          </>
+        )}
       </div>
     </header>
   );

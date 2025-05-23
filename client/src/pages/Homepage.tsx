@@ -42,9 +42,12 @@ const Homepage: React.FC = () => {
           </p>
           <div className="flex justify-center md:justify-start space-x-4">
             <Link to="/register">
-              <button className="w-auto h-auto px-4 py-3 bg-[#ff8c00] text-white rounded-full hover:bg-white hover:text-[#F2542D] transition duration-300 font-bold text-xl">
-                Începe acum
-              </button>
+              <motion.button
+                whileHover={{ scale: 1.05, backgroundColor: '#003f7a', boxShadow: '0px 0px 15px rgba(0,0,0,0.3)' }}
+                whileTap={{ scale: 0.97 }}
+                className="w-auto h-auto px-6 py-4 bg-[#0056a0] text-white rounded-full transition duration-300 font-bold text-xl shadow-lg">
+                <p className="text-white font-bold text-xl">Începe acum</p>
+              </motion.button>
             </Link>
           </div>
         </div>
@@ -141,7 +144,7 @@ const Homepage: React.FC = () => {
             <input required type="text" placeholder="Nume complet" className="border border-gray-300 p-3 rounded-lg w-full" />
             <input required type="email" placeholder="Email" className="border border-gray-300 p-3 rounded-lg w-full" />
             <textarea required placeholder="Mesaj" className="border border-gray-300 p-3 rounded-lg md:col-span-2 h-32 resize-none w-full"></textarea>
-            <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="md:col-span-2 bg-[#F2542D] hover:bg-[#ff7043] text-white py-3 px-6 rounded-lg font-semibold transition">
+            <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="md:col-span-2 bg-[#1B263B] text-white py-3 px-6 rounded-lg font-semibold transition">
               Trimite mesajul
             </motion.button>
           </form>
