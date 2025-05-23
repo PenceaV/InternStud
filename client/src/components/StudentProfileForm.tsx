@@ -2,9 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { auth, db, storage } from '../firebaseConfig';
 import { doc, updateDoc, getDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useNavigate } from 'react-router-dom';
-import { FaCamera, FaUpload, FaUserGraduate, FaLinkedin, FaGithub, FaLink, FaBriefcase, FaGraduationCap, FaTools } from 'react-icons/fa'; // Importăm iconițe
+import { FaCamera, FaUpload, FaUserGraduate, FaLinkedin, FaGithub, FaLink, FaBriefcase, FaGraduationCap, FaTools } from 'react-icons/fa'; // Added camera, upload, user graduate icons back
 
 interface StudentProfileFormProps {
   userType?: 'student'; // Define userType prop as optional, since it might not always be 'student'
@@ -29,7 +28,6 @@ const StudentProfileForm: React.FC<StudentProfileFormProps> = ({ userType }) => 
   const [bio, setBio] = useState('');
   const [profileImage, setProfileImage] = useState<File | null>(null);
   const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
-  const [cvFile, setCvFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
@@ -63,7 +61,6 @@ const StudentProfileForm: React.FC<StudentProfileFormProps> = ({ userType }) => 
           const data = docSnap.data();
           setBio(data.bio || '');
           setProfileImageUrl(data.profileImageUrl || null);
-          setCvFile(null); // We don't fetch the actual file, just the URL
           setEducation(data.education || [{ university: '', specialization: '', startDate: '', endDate: '' }]);
           setExperience(data.experience || [{ title: '', company: '', startDate: '', endDate: '', isPresent: false }]);
           setSkills(data.skills || ['']);
@@ -81,21 +78,8 @@ const StudentProfileForm: React.FC<StudentProfileFormProps> = ({ userType }) => 
   }, [user]); // Dependency array includes user so it runs when user state changes
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setProfileImage(file);
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setProfileImageUrl(e.target?.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleCvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setCvFile(e.target.files[0]);
-    }
+    console.log('Profile image upload triggered (placeholder)', e.target.files);
+    // No actual upload logic here
   };
 
   // Update education handlers
@@ -174,26 +158,12 @@ const StudentProfileForm: React.FC<StudentProfileFormProps> = ({ userType }) => 
     }
 
     const userDocRef = doc(db, 'users', user.uid);
-    let uploadedProfileImageUrl = profileImageUrl;
-    let uploadedCvUrl = '';
 
     try {
-      if (profileImage) {
-        const imageRef = ref(storage, `profile_images/${user.uid}/${profileImage.name}`);
-        await uploadBytes(imageRef, profileImage);
-        uploadedProfileImageUrl = await getDownloadURL(imageRef);
-      }
-
-      if (cvFile) {
-        const cvRef = ref(storage, `cvs/${user.uid}/${cvFile.name}`);
-        await uploadBytes(cvRef, cvFile);
-        uploadedCvUrl = await getDownloadURL(cvRef);
-      }
-
       await updateDoc(userDocRef, {
         bio: bio,
-        profileImageUrl: uploadedProfileImageUrl,
-        cvUrl: uploadedCvUrl,
+        profileImageUrl: profileImageUrl,
+        cvUrl: null, // Set CV URL to null as feature is removed temporarily
         education: education.filter(edu => edu.university.trim() !== '' || edu.specialization.trim() !== ''), // Save non-empty entries
         experience: experience.filter(exp => exp.title.trim() !== '' || exp.company.trim() !== ''), // Filter out empty experience entries
         skills: skills.filter(skill => skill.trim() !== ''), // Save non-empty entries
@@ -226,53 +196,72 @@ const StudentProfileForm: React.FC<StudentProfileFormProps> = ({ userType }) => 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Profile Photo and Summary Section */}
           <div className="space-y-4 pb-6 border-b border-gray-200">
-            <h3 className="text-lg font-semibold text-[#1B263B]">Creează profil</h3>
+            <h3 className="text-lg font-semibold text-[#1B263B]">Crează profil</h3>
 
-            {/* Name Display and Edit */}
-            <div className="flex items-center space-x-4">
-              {isEditingName ? (
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="text"
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-[#0056a0] focus:border-[#0056a0] text-gray-800 placeholder-gray-400 bg-white"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    placeholder="Prenume"
-                  />
-                  <input
-                    type="text"
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-[#0056a0] focus:border-[#0056a0] text-gray-800 placeholder-gray-400 bg-white"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    placeholder="Nume"
-                  />
-                  <button type="button" onClick={handleSaveName} className="text-sm text-[#0056a0] hover:underline">Salvează</button>
-                </div>
-              ) : (
-                <div className="flex items-center space-x-2">
-                  <p className="text-lg font-semibold text-gray-800">{`${firstName} ${lastName}`}</p>
-                  <button type="button" onClick={handleNameEditClick} className="text-sm text-[#0056a0] hover:underline">Editează</button>
-                </div>
-              )}
-            </div>
-
-            <div className="flex flex-col md:flex-row items-center md:items-start space-y-4 md:space-y-0 md:space-x-6">
-               {/* Profile Photo */}
-              <div className="flex-shrink-0 relative w-32 h-32 rounded-full overflow-hidden border-4 border-[#0056a0] bg-gray-100 flex items-center justify-center">
+            {/* Profile Picture, Name, and Edit Area */}
+            <div className="flex items-center">
+              {/* Profile Picture Placeholder or Image (always visible) */}
+              <div className="relative w-24 h-24 rounded-full overflow-hidden border-2 border-[#0056a0] bg-gray-100 flex-shrink-0 flex items-center justify-center mr-4">
                 {profileImageUrl ? (
                   <img src={profileImageUrl} alt="Poză de profil" className="w-full h-full object-cover" />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-500 text-6xl">
-                     <FaUserGraduate size={60} />
+                  // Placeholder icon
+                  <div className="w-full h-full flex items-center justify-center text-gray-500 text-4xl">
+                     <FaUserGraduate size={40} />
                   </div>
                 )}
-                 {/* Upload Button */}
-                <label htmlFor="profile-image-upload" className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center text-white text-xl cursor-pointer opacity-0 hover:opacity-100 transition-opacity">
-                   <FaCamera size={30} />
-                </label>
-                 <input id="profile-image-upload" type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                 {/* Upload Button with Hover Effect (visually present but non-functional) */}
+                 <label className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center text-white text-xl cursor-default opacity-0 hover:opacity-100 transition-opacity">
+                    <FaCamera size={30} />
+                 </label>
+                  {/* Hidden file input (non-functional) */}
+                 <input id="profile-image-upload" type="file" accept="image/*" onChange={handleImageUpload} className="hidden" disabled />
               </div>
-               {/* Bio/Summary */}
+
+              {/* Name Display / Edit Area (conditional content) */}
+              <div className="flex-grow flex flex-col justify-center space-y-1">
+                {isEditingName ? (
+                  // Show input fields and Save button when editing
+                  <div className="flex flex-col space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="text"
+                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-[#0056a0] focus:border-[#0056a0] text-gray-800 placeholder-gray-400 bg-white focus:outline-none focus:ring-0"
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        placeholder="Prenume"
+                      />
+                      <input
+                        type="text"
+                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-[#0056a0] focus:border-[#0056a0] text-gray-800 placeholder-gray-400 bg-white focus:outline-none focus:ring-0"
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                        placeholder="Nume"
+                      />
+                    </div>
+                    {/* Save Button */}
+                    <div>
+                      <button type="button" onClick={handleSaveName} className="text-sm text-[#0056a0] hover:underline focus:outline-none focus:ring-0">Salvează</button>
+                    </div>
+                  </div>
+                ) : (
+                  // Show name and Edit button when not editing
+                  <div className="flex flex-col space-y-1">
+                     {/* Name Display */}
+                    <div>
+                       <p className="text-lg font-semibold text-gray-800">{`${firstName} ${lastName}`}</p>
+                    </div>
+                     {/* Edit Button */}
+                    <div>
+                       <button type="button" onClick={handleNameEditClick} className="text-sm text-[#0056a0] hover:underline">Editează</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Bio/Summary */}
+            <div className="flex flex-col md:flex-row items-center md:items-start space-y-4 md:space-y-0 md:space-x-6">
               <div className="flex-grow space-y-2">
                  <label htmlFor="bio" className="block text-sm font-semibold text-[#1B263B]">Bio/Rezumat</label>
                 <textarea
@@ -284,7 +273,6 @@ const StudentProfileForm: React.FC<StudentProfileFormProps> = ({ userType }) => 
                   onChange={(e) => setBio(e.target.value)}
                   placeholder="Spune ceva despre tine..."
                 ></textarea>
-                 {profileImage && <p className="text-sm text-gray-600 mt-1">Fișier poză selectat: {profileImage.name}</p>}
               </div>
             </div>
           </div>
@@ -503,23 +491,20 @@ const StudentProfileForm: React.FC<StudentProfileFormProps> = ({ userType }) => 
           <div className="space-y-4">
              <h3 className="text-lg font-semibold text-[#1B263B]">Încărcare CV</h3>
              <div>
-               <label className="block text-sm font-medium text-[#1B263B]">Încarcă CV</label>
-               <div className="mt-1 flex items-center space-x-4 p-4 border border-gray-300 rounded-md bg-gray-50">
-                 <label htmlFor="cv-upload" className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-semibold text-[#1B263B] bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0056a0] cursor-pointer transition-colors">
-                   <span className="mr-2"><FaUpload size={16} /></span>
-                   Alege fișier
-                 </label>
-                 <input id="cv-upload" type="file" accept=".pdf,.doc,.docx" onChange={handleCvUpload} className="hidden" />
-                 {cvFile ? (
-                    <span className="text-sm text-gray-700 font-medium">{cvFile.name}</span>
-                 ) : (
-                    <span className="text-sm text-gray-500">Niciun fișier selectat</span>
-                 )}
-               </div>
+                <div className="mt-1 flex items-center space-x-4 p-4 border border-gray-300 rounded-md bg-gray-50">
+                  {/* Removed htmlFor from label and added disabled to input */}
+                  <label className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-semibold text-[#1B263B] bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0056a0] cursor-default transition-colors">
+                    <span className="mr-2"><FaUpload size={16} /></span>
+                    Alege fișier
+                  </label>
+                  {/* Input is hidden and disabled */}
+                  <input id="cv-upload" type="file" accept=".pdf,.doc,.docx" className="hidden" disabled />
+                  {/* Display placeholder text as no file is selected or uploaded */}
+                  <span className="text-sm text-gray-500">Niciun fișier selectat</span>
+                </div>
                 <p className="mt-2 text-xs text-gray-500">Fișiere PDF, DOC, și DOCX suportate.</p>
              </div>
           </div>
-
 
           {/* Submit Button */}
           <div className="flex justify-end pt-6">

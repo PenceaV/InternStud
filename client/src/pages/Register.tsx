@@ -16,7 +16,6 @@ const Register: React.FC = () => {
     institutionalEmail: '',
     password: '',
     confirmPassword: '',
-    faculty: '',
     // Company fields
     email: '',
   });
@@ -73,13 +72,13 @@ const Register: React.FC = () => {
         userType: userType,
         email: user.email,
         profileCompleted: false,
+        status: 'pending', // Set status to pending immediately for all new users
       };
 
       if (userType === 'student') {
         userData.firstName = formData.firstName;
         userData.lastName = formData.lastName;
         userData.institutionalEmail = formData.institutionalEmail;
-        userData.faculty = formData.faculty;
       } else {
         // Removed companyName and website from userData
         // userData.companyName = formData.companyName;
@@ -158,7 +157,7 @@ const Register: React.FC = () => {
                   <>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label htmlFor="firstName" className="block text-sm font-medium text-[#1B263B]">Prenume <span className="text-red-500">*</span></label>
+                        <label htmlFor="firstName" className="block text-sm font-medium text-[#1B263B]">Prenume</label>
                         <input
                           type="text"
                           name="firstName"
@@ -170,7 +169,7 @@ const Register: React.FC = () => {
                         />
                       </div>
                       <div>
-                        <label htmlFor="lastName" className="block text-sm font-medium text-[#1B263B]">Nume <span className="text-red-500">*</span></label>
+                        <label htmlFor="lastName" className="block text-sm font-medium text-[#1B263B]">Nume</label>
                         <input
                           type="text"
                           name="lastName"
@@ -183,7 +182,7 @@ const Register: React.FC = () => {
                       </div>
                     </div>
                     <div>
-                      <label htmlFor="institutionalEmail" className="block text-sm font-medium text-[#1B263B]">Email Instituțional <span className="text-red-500">*</span></label>
+                      <label htmlFor="institutionalEmail" className="block text-sm font-medium text-[#1B263B]">Email Instituțional</label>
                       <input
                         type="email"
                         name="institutionalEmail"
@@ -194,24 +193,12 @@ const Register: React.FC = () => {
                         className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-[#0056a0] focus:border-[#0056a0] text-black placeholder-gray-400 bg-white"
                       />
                     </div>
-                    <div>
-                      <label htmlFor="faculty" className="block text-sm font-medium text-[#1B263B]">Facultate <span className="text-red-500">*</span></label>
-                      <input
-                        type="text"
-                        name="faculty"
-                        id="faculty"
-                        required
-                        value={formData.faculty}
-                        onChange={handleInputChange}
-                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-[#0056a0] focus:border-[#0056a0] text-black placeholder-gray-400 bg-white"
-                      />
-                    </div>
                   </>
                 ) : (
                   // Company Form
                   <>
                     <div>
-                      <label htmlFor="email" className="block text-sm font-medium text-[#1B263B]">Email <span className="text-red-500">*</span></label>
+                      <label htmlFor="email" className="block text-sm font-medium text-[#1B263B]">Email</label>
                       <input
                         type="email"
                         name="email"
@@ -228,7 +215,7 @@ const Register: React.FC = () => {
                 {/* Common fields for both forms */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label htmlFor="password" className="block text-sm font-medium text-[#1B263B]">Parolă <span className="text-red-500">*</span></label>
+                    <label htmlFor="password" className="block text-sm font-medium text-[#1B263B]">Parolă</label>
                     <input
                       type="password"
                       name="password"
@@ -240,7 +227,7 @@ const Register: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <label htmlFor="confirmPassword" className="block text-sm font-medium text-[#1B263B]">Confirmă Parola <span className="text-red-500">*</span></label>
+                    <label htmlFor="confirmPassword" className="block text-sm font-medium text-[#1B263B]">Confirmă Parola</label>
                     <input
                       type="password"
                       name="confirmPassword"

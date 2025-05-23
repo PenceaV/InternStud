@@ -44,7 +44,7 @@ const Navbar: React.FC = () => {
           <Link 
             to="#features"
             onClick={(e) => { e.preventDefault(); scrollToSection('features'); }}
-            className="text-[#1B263B] hover:text-[#F2542D] transition-colors duration-300 relative group"
+            className="text-[#1B263B]  transition-colors duration-300 relative group"
           >
             Funcționalități
             <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-[#F2542D] transition-all duration-300 group-hover:w-full"></span>
@@ -53,7 +53,7 @@ const Navbar: React.FC = () => {
           <Link 
             to="#about"
             onClick={(e) => { e.preventDefault(); scrollToSection('about'); }}
-            className="text-[#1B263B] hover:text-[#F2542D] transition-colors duration-300 relative group"
+            className="text-[#1B263B]  transition-colors duration-300 relative group"
           >
             Despre
             <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-[#F2542D] transition-all duration-300 group-hover:w-full"></span>
@@ -62,7 +62,7 @@ const Navbar: React.FC = () => {
           <Link 
             to="#contact"
             onClick={(e) => { e.preventDefault(); scrollToSection('contact'); }}
-            className="text-[#1B263B] hover:text-[#F2542D] transition-colors duration-300 relative group"
+            className="text-[#1B263B]  transition-colors duration-300 relative group"
           >
             Contact
             <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-[#F2542D] transition-all duration-300 group-hover:w-full"></span>

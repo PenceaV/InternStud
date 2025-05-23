@@ -3,13 +3,14 @@ import Navbar from '../components/Navbar';
 import StudentProfileForm from '../components/StudentProfileForm';
 import CompanyProfileForm from '../components/CompanyProfileForm';
 import { auth, db } from '../firebaseConfig';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, onSnapshot, getDoc } from 'firebase/firestore';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { useNavigate } from 'react-router-dom';
 
 const CreateProfile: React.FC = () => {
   const [userType, setUserType] = useState<'student' | 'company' | null>(null);
   const [profileCompleted, setProfileCompleted] = useState<boolean>(false);
+  const [profileStatus, setProfileStatus] = useState<'not_submitted' | 'pending' | 'approved' | 'rejected'>('not_submitted');
   const [user, loadingAuth] = useAuthState(auth);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [errorProfile, setErrorProfile] = useState<string | null>(null); // Setăm inițial pe null
@@ -18,61 +19,79 @@ const CreateProfile: React.FC = () => {
   console.log('CreateProfile Component Rendered', { userType, profileCompleted, loadingAuth, loadingProfile, errorProfile, user: !!user });
 
   useEffect(() => {
-    console.log('useEffect running', { user, loadingAuth });
-    const fetchUserData = async () => {
-      console.log('fetchUserData running');
-      if (!user) {
-        // Dacă utilizatorul nu este autentificat, redirecționează la login (ar trebui gestionat de ruta privata, dar este o verificare suplimentara)
-        navigate('/login');
-        return; // Oprim execuția
-      }
+    console.log('useEffect running for snapshot listener', { user, loadingAuth });
 
-      setLoadingProfile(true); // Setăm loading la true înainte de fetch
+    let unsubscribe = () => {}; // Placeholder for the unsubscribe function
+
+    if (!loadingAuth && user) {
       const userDocRef = doc(db, 'users', user.uid);
-      try {
-        const userDoc = await getDoc(userDocRef);
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          console.log('User data fetched:', userData);
+      
+      // Set up real-time listener
+      unsubscribe = onSnapshot(userDocRef, (docSnapshot) => {
+        console.log('Snapshot received:', docSnapshot.data());
+        if (docSnapshot.exists()) {
+          const userData = docSnapshot.data();
           setUserType(userData.userType);
           setProfileCompleted(userData.profileCompleted);
 
-          // Dacă profilul este deja complet, redirecționează către dashboard
-          if (userData.profileCompleted) {
-            navigate('/dashboard');
+          // Read profile status for company users
+          if (userData.userType === 'company') {
+            setProfileStatus(userData.status || 'not_submitted');
+          } else {
+              // Reset status for non-company users or if status is missing
+              setProfileStatus('not_submitted');
           }
 
+          // Handle redirection based on user type and status
+          if (userData.userType === 'company' && userData.status === 'pending') {
+              // Stay on this page to show the 'under review' message after profile completion
+              console.log('Company profile is pending, staying on create-profile page.');
+          } else if (userData.profileCompleted && userData.userType === 'student') {
+              // Redirect students immediately after profile completion
+              console.log('Student profile completed, redirecting to dashboard.');
+              navigate('/dashboard');
+          } else if (userData.userType === 'company' && userData.status === 'approved') {
+              // Redirect approved companies to dashboard
+              console.log('Company profile approved, redirecting to dashboard.');
+              navigate('/dashboard');
+          }
+
+          // Set loading to false after the first snapshot
+          setLoadingProfile(false);
+
         } else {
-          // Acest caz nu ar trebui să se întâmple dacă utilizatorul s-a înregistrat corect
-          // Dar, pentru siguranță, gestionăm și acest scenariu
-           // Putem decide cum gestionăm acest caz - ex: afișăm un mesaj de eroare sau cerem reînregistrarea/autentificarea
-          console.log('User document not found');
+          // User document does not exist
+          console.log('User document not found in snapshot');
           setErrorProfile('Date utilizator incomplete. Te rugăm să te înregistrezi din nou sau să contactezi suportul.');
-           setUserType(null); // Nu avem tip de utilizator valid
+          setUserType(null);
+          setProfileCompleted(false);
+          setProfileStatus('not_submitted');
+          setLoadingProfile(false);
         }
-      } catch (err: any) {
-        console.error("Eroare la citirea datelor utilizatorului:", err);
+      }, (err: any) => {
+        // Handle errors from the snapshot listener
+        console.error("Error listening to user document:", err);
         setErrorProfile('A apărut o eroare la citirea datelor utilizatorului: ' + err.message);
-         setUserType(null); // În caz de eroare, nu avem tip valid
-      } finally {
-        console.log('fetchUserData finished', { loadingProfile, errorProfile });
-        setLoadingProfile(false); // Setăm loading la false indiferent de succes/eroare
-      }
+        setLoadingProfile(false);
+      });
+
+    } else if (!loadingAuth && !user) {
+      // If not authenticated after loadingAuth, redirect
+      console.log('User not authenticated after loadingAuth, redirecting to login');
+      navigate('/login');
+      setLoadingProfile(false); // Stop loading if not authenticated
+    }
+
+    // Cleanup function to unsubscribe from the listener
+    return () => {
+      console.log('Unsubscribing from snapshot listener');
+      unsubscribe();
     };
 
-    // Executăm fetchUserData doar după ce starea de autentificare a fost determinată și utilizatorul este autentificat
-    if (!loadingAuth && user) {
-       fetchUserData();
-     } else if (!loadingAuth && !user) {
-       // Dacă nu este autentificat după ce s-a terminat loadingAuth, redirecționează la login
-        console.log('User not authenticated after loadingAuth');
-        navigate('/login');
-     }
-
-  }, [user, loadingAuth, navigate]); // Dependențe pentru useEffect
+  }, [user, loadingAuth, navigate]); // Depend on user, loadingAuth, and navigate
 
   // Gestionarea stărilor de încărcare și eroare
-  if (loadingAuth || loadingProfile) {
+  if (loadingAuth || (user && loadingProfile)) {
     console.log('Rendering Loading State');
     return (
       <div className="min-h-screen bg-white flex flex-col items-center justify-center">
@@ -97,9 +116,20 @@ const CreateProfile: React.FC = () => {
     );
   }
 
-  // Afișează formularul corespunzător dacă profilul nu este complet și userType este determinat
-   if (userType && !profileCompleted) {
-    console.log('Rendering Profile Forms', { userType, profileCompleted });
+  // Afișează mesajul de pending pentru companii cu status 'pending' ȘI profil completat
+  if (userType === 'company' && profileStatus === 'pending' && profileCompleted) {
+    console.log('Rendering Pending State for Company');
+    return (
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center text-center px-4">
+        <h2 className="text-2xl font-bold text-[#1B263B] mb-4">Cererea de creare a profilului companiei a fost trimisă spre examinare.</h2>
+        <p className="text-gray-600">Vă mulțumim! Vă vom notifica prin email odată ce profilul dumneavoastră este aprobat.</p>
+      </div>
+    );
+  }
+
+  // Afișează formularul corespunzător dacă userType este determinat și profilul NU este completat
+  if (userType && !profileCompleted) {
+    console.log('Rendering Profile Forms', { userType, profileCompleted, profileStatus });
     return (
       <div>
         <Navbar />
@@ -110,7 +140,7 @@ const CreateProfile: React.FC = () => {
   }
 
   // Cazul implicit sau dacă profilul este deja complet (deși ar trebui redirecționat mai sus)
-  console.log('Rendering Null State', { userType, profileCompleted });
+  console.log('Rendering Null/Completed State', { userType, profileCompleted, profileStatus });
   return null; // Nu afișăm nimic dacă nu suntem în nicio stare de mai sus
 };
 

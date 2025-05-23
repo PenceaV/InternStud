@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { auth, db, storage } from '../firebaseConfig';
+import { auth, db } from '../firebaseConfig';
 import { doc, updateDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useNavigate } from 'react-router-dom';
-import { FaBuilding, FaUpload, FaCamera, FaLink } from 'react-icons/fa'; // Importăm iconițe
+import { FaBuilding, FaCamera, FaLink } from 'react-icons/fa'; // Add Building and Camera back
 
 interface CompanyProfileFormProps {
   userType: 'student' | 'company';
@@ -19,10 +18,11 @@ const CompanyProfileForm: React.FC<CompanyProfileFormProps> = ({ userType }) => 
   const [companySize, setCompanySize] = useState('');
   const [companyType, setCompanyType] = useState('');
   const [tagline, setTagline] = useState('');
+  const [description, setDescription] = useState('');
   const [verification, setVerification] = useState(false);
   
-  const [logo, setLogo] = useState<File | null>(null);
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [logo, setLogo] = useState<File | null>(null); // Add logo state back
+  const [logoUrl, setLogoUrl] = useState<string | null>(null); // Add logoUrl state back
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -33,27 +33,22 @@ const CompanyProfileForm: React.FC<CompanyProfileFormProps> = ({ userType }) => 
   // Fetch user data on component mount to pre-fill form if data exists
   // useEffect(() => { ... }, [user]);
 
+  // Placeholder handleLogoUpload function (non-functional)
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setLogo(file);
-      // Previzualizare logo
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setLogoUrl(e.target?.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
+    console.log('Logo upload triggered (placeholder)', e.target.files);
+    // No actual upload logic here
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
+    console.log('handleSubmit started, loading set to true'); // Log start
 
     if (!user) {
       setError('Utilizatorul nu este autentificat.');
       setLoading(false);
+      console.log('handleSubmit: No user, loading set to false, returning.'); // Log no user
       return;
     }
 
@@ -61,19 +56,18 @@ const CompanyProfileForm: React.FC<CompanyProfileFormProps> = ({ userType }) => 
      if (!companyName || !industry || !companySize || !companyType || !verification) {
          setError('Te rugăm să completezi toate câmpurile obligatorii și să bifezi caseta de verificare.');
         setLoading(false);
+        console.log('handleSubmit: Validation failed, loading set to false, returning.'); // Log validation failure
         return;
       }
 
     const userDocRef = doc(db, 'users', user.uid);
-    let uploadedLogoUrl = logoUrl;
 
     try {
-      if (logo) {
-        const logoRef = ref(storage, `company_logos/${user.uid}/${logo.name}`);
-        await uploadBytes(logoRef, logo);
-        uploadedLogoUrl = await getDownloadURL(logoRef);
-      }
+      console.log('handleSubmit: Try block entered.'); // Log try start
 
+      // Removed logo upload logic
+
+      console.log('handleSubmit: Updating user document with status pending (without logo).'); // Log update start
       await updateDoc(userDocRef, {
         companyName: companyName,
         // Removed linkedinUrl
@@ -82,17 +76,23 @@ const CompanyProfileForm: React.FC<CompanyProfileFormProps> = ({ userType }) => 
         companySize: companySize,
         companyType: companyType,
         tagline: tagline,
-        logoUrl: uploadedLogoUrl,
+        // logoUrl: logoUrl, // Keep this line, but logoUrl state will be null
         verification: verification,
         profileCompleted: true,
+        status: 'pending',
+        description: description,
       });
+      console.log('handleSubmit: User document updated.'); // Log update finish
 
+      console.log('handleSubmit: Navigating to dashboard.'); // Log navigation
       navigate('/dashboard');
 
     } catch (err: any) {
+      console.error("handleSubmit: Catch block entered, error:", err);
       console.error("Eroare la salvarea profilului companiei:", err);
       setError('A apărut o eroare la salvarea profilului: ' + err.message);
     } finally {
+      console.log('handleSubmit: Finally block entered, setting loading to false.'); // Log finally
       setLoading(false);
     }
   };
@@ -115,7 +115,7 @@ const CompanyProfileForm: React.FC<CompanyProfileFormProps> = ({ userType }) => 
               <div className="space-y-4 pb-4 border-b border-gray-200">
                 <h3 className="text-lg font-semibold text-[#1B263B]">Informații Pagină și Profil</h3>
 
-                {/* Company Logo and Name */}
+                 {/* Company Logo and Name */}
                  <div className="flex flex-row items-center space-x-6">
                    {/* Logo Upload */}
                    <div>
@@ -130,16 +130,17 @@ const CompanyProfileForm: React.FC<CompanyProfileFormProps> = ({ userType }) => 
                            </div>
                          )}
                          {/* Upload Button with Hover Effect */}
-                         <label htmlFor="company-logo-upload" className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center text-white text-xl cursor-pointer opacity-0 hover:opacity-100 transition-opacity">
+                         <label className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center text-white text-xl cursor-default opacity-0 hover:opacity-100 transition-opacity">
                             <FaCamera size={30} />
                          </label>
-                         {/* Hidden file input */}
+                         {/* Hidden file input (non-functional) */}
                          <input
                            id="company-logo-upload"
                            type="file"
                            accept="image/*"
+                           disabled
                            className="sr-only" // Tailwind class to visually hide the input
-                           onChange={handleLogoUpload}
+                           onChange={handleLogoUpload} // Placeholder handler
                          />
                        </div>
                      </div>
@@ -254,6 +255,19 @@ const CompanyProfileForm: React.FC<CompanyProfileFormProps> = ({ userType }) => 
                        onChange={(e) => setTagline(e.target.value)}
                        placeholder="Exemplu: Firma de contabilitate familială care vă garantează liniștea în privința taxelor."
                      />
+                   </div>
+                   {/* Description */}
+                   <div>
+                     <label htmlFor="description" className="block text-sm font-medium text-[#1B263B]">Descriere Companie</label>
+                     <textarea
+                       id="description"
+                       name="description"
+                       rows={4} // Adjust rows as needed
+                       className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-[#0056a0] focus:border-[#0056a0] text-gray-800 placeholder-gray-400 bg-white"
+                       value={description}
+                       onChange={(e) => setDescription(e.target.value)}
+                       placeholder="O scurtă descriere a companiei tale..."
+                     ></textarea>
                    </div>
                </div>
 

@@ -74,7 +74,7 @@ const Login: React.FC = () => {
             )}
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-[#1B263B]">Email <span className="text-red-500">*</span></label>
+                <label htmlFor="email" className="block text-sm font-medium text-[#1B263B]">Email</label>
                 <input
                   type="email"
                   name="email"
@@ -86,7 +86,7 @@ const Login: React.FC = () => {
                 />
               </div>
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-[#1B263B]">Parolă <span className="text-red-500">*</span></label>
+                <label htmlFor="password" className="block text-sm font-medium text-[#1B263B]">Parolă</label>
                 <input
                   type="password"
                   name="password"
