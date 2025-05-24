@@ -15,6 +15,7 @@ interface Announcement {
   applicationDeadline: Timestamp;
   companyId: string;
   createdAt: Timestamp;
+  status?: 'pending' | 'approved' | 'rejected'; // Add the status field
 }
 
 interface AnnouncementDetailsModalProps {
@@ -44,12 +45,27 @@ const AnnouncementDetailsModal: React.FC<AnnouncementDetailsModalProps> = ({ ann
             <p className="text-sm text-gray-500 text-left mb-2"><strong>Cerințe:</strong> {announcement.requirements}</p>
             {announcement.benefits && <p className="text-sm text-gray-500 text-left mb-2"><strong>Beneficii:</strong> {announcement.benefits}</p>}
             <p className="text-sm text-gray-500 text-left mb-2"><strong>Data Limită Aplicare:</strong> {formatDate(announcement.applicationDeadline)}</p>
+
+            {/* Display Status */}
+            {announcement.status && (
+              <p className={
+                `text-sm text-left mb-2 font-semibold ` +
+                (announcement.status === 'approved' ? 'text-green-600' :
+                 announcement.status === 'rejected' ? 'text-red-600' : 'text-gray-500')
+              }>
+                <strong>Status:</strong>
+                {announcement.status === 'approved' && ' Postat'}
+                {announcement.status === 'pending' && ' Asteapta aprobarea'}
+                {announcement.status === 'rejected' && ' Respins'}
+              </p>
+            )}
+
           </div>
           <div className="items-center px-4 py-3">
             <button
               id="ok-btn"
               onClick={onClose}
-              className="px-4 py-2 bg-[#0056a0] text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-[#003f7a] focus:outline-none focus:ring-2 focus:ring-green-300"
+              className="px-4 py-2 bg-[#0056a0] text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-[#003f7a] focus:outline-none focus:ring-2"
             >
               Închide
             </button>

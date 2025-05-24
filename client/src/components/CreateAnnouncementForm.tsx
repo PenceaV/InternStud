@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { db, auth } from '../firebaseConfig';
-import { collection, addDoc, Timestamp, doc, getDoc } from 'firebase/firestore';
+import { collection, addDoc, Timestamp, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
@@ -8,9 +8,27 @@ import "react-datepicker/dist/react-datepicker.css";
 // Define the props interface for CreateAnnouncementForm
 interface CreateAnnouncementFormProps {
   onAnnouncementAdded: () => void; // Callback function for successful addition
+  announcementToEdit?: Announcement | null; // Optional announcement data for editing
 }
 
-const CreateAnnouncementForm: React.FC<CreateAnnouncementFormProps> = ({ onAnnouncementAdded }) => {
+// Define the interface for the Announcement data (should match the one in Dashboard.tsx)
+interface Announcement {
+  id: string;
+  title: string;
+  companyName: string;
+  description: string;
+  location: string;
+  jobType: string;
+  salary?: string; // Optional
+  requirements: string;
+  benefits?: string; // Optional
+  applicationDeadline: Timestamp;
+  companyId: string;
+  createdAt: Timestamp;
+  status?: 'pending' | 'approved' | 'rejected';
+}
+
+const CreateAnnouncementForm: React.FC<CreateAnnouncementFormProps> = ({ onAnnouncementAdded, announcementToEdit }) => {
   const [user] = useAuthState(auth);
   const [formData, setFormData] = useState({
     title: '',
@@ -25,6 +43,34 @@ const CreateAnnouncementForm: React.FC<CreateAnnouncementFormProps> = ({ onAnnou
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+
+  useEffect(() => {
+    // If announcementToEdit is provided, populate the form data
+    if (announcementToEdit) {
+      setFormData({
+        title: announcementToEdit.title || '',
+        description: announcementToEdit.description || '',
+        location: announcementToEdit.location || '',
+        jobType: announcementToEdit.jobType || '',
+        salary: announcementToEdit.salary || '',
+        requirements: announcementToEdit.requirements || '',
+        benefits: announcementToEdit.benefits || '',
+        applicationDeadline: announcementToEdit.applicationDeadline?.toDate() || null, // Convert Timestamp to Date
+      });
+    } else {
+      // Clear form if no announcementToEdit (for new announcements)
+      setFormData({
+        title: '',
+        description: '',
+        location: '',
+        jobType: '',
+        salary: '',
+        requirements: '',
+        benefits: '',
+        applicationDeadline: null,
+      });
+    }
+  }, [announcementToEdit]); // Rerun effect when announcementToEdit changes
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -62,22 +108,6 @@ const CreateAnnouncementForm: React.FC<CreateAnnouncementFormProps> = ({ onAnnou
     console.log('handleSubmit: Validation passed, loading set to true.');
 
     try {
-      // Fetch company name from user document to associate with the announcement
-      console.log('handleSubmit: Attempting to fetch user document.', user.uid);
-      // Use Firebase v9 modular syntax to fetch user document
-      const userDocRef = doc(db, 'users', user.uid);
-      const userDoc = await getDoc(userDocRef);
-      
-      if (!userDoc.exists()) {
-          console.log('handleSubmit: User document not found.');
-          setError('Nu s-au putut găsi datele companiei.');
-          setLoading(false);
-          return;
-      }
-
-      const companyName = userDoc.data()?.companyName || 'Unknown Company';
-      console.log('handleSubmit: User document fetched, companyName:', companyName);
-
       const announcementData = {
         title: formData.title,
         description: formData.description,
@@ -87,30 +117,54 @@ const CreateAnnouncementForm: React.FC<CreateAnnouncementFormProps> = ({ onAnnou
         requirements: formData.requirements,
         benefits: formData.benefits,
         applicationDeadline: Timestamp.fromDate(formData.applicationDeadline!), // Convert Date to Timestamp (non-null assertion after validation)
-        companyId: user.uid,
-        companyName: companyName,
-        createdAt: Timestamp.now(),
       };
       
+      // Include companyId and companyName only if creating a new announcement
+      // For edits, these fields should not be changed via the form
+      if (!announcementToEdit) {
+        // Fetch company name from user document to associate with the announcement
+        console.log('handleSubmit: Attempting to fetch user document.', user.uid);
+        const userDocRef = doc(db, 'users', user.uid);
+        const userDoc = await getDoc(userDocRef);
+        
+        if (!userDoc.exists()) {
+            console.log('handleSubmit: User document not found.');
+            setError('Nu s-au putut găsi datele companiei.');
+            setLoading(false);
+            return;
+        }
+        const companyName = userDoc.data()?.companyName || 'Unknown Company';
+        Object.assign(announcementData, { companyId: user.uid, companyName: companyName, status: 'pending' }); // Add fields for new announcement
+      }
+
       console.log('handleSubmit: Prepared announcement data:', announcementData);
 
-      console.log('handleSubmit: Attempting to add document to Firestore.');
-      await addDoc(collection(db, 'announcements'), announcementData);
-      console.log('handleSubmit: Document added successfully.');
-
-      setSuccess(true);
-      // Clear form fields after successful submission
-      console.log('handleSubmit: Clearing form and setting success.');
-      setFormData({
-        title: '',
-        description: '',
-        location: '',
-        jobType: '',
-        salary: '',
-        requirements: '',
-        benefits: '',
-        applicationDeadline: null,
-      });
+      if (announcementToEdit) {
+        console.log('handleSubmit: Attempting to update document in Firestore.', announcementToEdit.id);
+        const announcementRef = doc(db, 'announcements', announcementToEdit.id);
+        // Exclude createdAt and other fields that shouldn't be updated via edit
+        const { createdAt, ...updatedData } = announcementData; // Destructure to exclude createdAt
+        await updateDoc(announcementRef, { ...updatedData, status: 'pending' });
+        console.log('Document updated successfully.');
+        setSuccess(true);
+      } else {
+        console.log('handleSubmit: Attempting to add document to Firestore.');
+        await addDoc(collection(db, 'announcements'), announcementData);
+        console.log('Document added successfully.');
+        setSuccess(true);
+        // Clear form fields only after successful creation
+        console.log('handleSubmit: Clearing form after creation.');
+        setFormData({
+          title: '',
+          description: '',
+          location: '',
+          jobType: '',
+          salary: '',
+          requirements: '',
+          benefits: '',
+          applicationDeadline: null,
+        });
+      }
 
       // Call the callback function provided by the parent component
       onAnnouncementAdded();
@@ -247,7 +301,7 @@ const CreateAnnouncementForm: React.FC<CreateAnnouncementFormProps> = ({ onAnnou
             className="px-4 py-2 bg-[#0056a0] text-white rounded-md hover:bg-[#003f7a] transition-colors"
             disabled={loading}
           >
-            {loading ? 'Se Adaugă...' : 'Adaugă Anunțul'}
+            {loading ? (announcementToEdit ? 'Se Salvează...' : 'Se Adaugă...') : (announcementToEdit ? 'Salvează Modificările' : 'Adaugă Anunțul')}
           </button>
         </div>
       </form>

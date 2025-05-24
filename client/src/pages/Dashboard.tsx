@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { db, auth } from '../firebaseConfig';
-import { collection, query, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, query, getDocs, doc, getDoc, deleteDoc } from 'firebase/firestore';
 import { useAuthState } from 'react-firebase-hooks/auth';
-import { FaUserGraduate, FaHome, FaBriefcase, FaUserCircle, FaRocket, FaCog, FaPowerOff, FaFilter, FaBuilding } from 'react-icons/fa';
+import { FaUserGraduate, FaHome, FaBriefcase, FaUserCircle, FaRocket, FaCog, FaPowerOff, FaFilter, FaBuilding, FaBell, FaPlus } from 'react-icons/fa';
 import { signOut } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
 import LoadingSpinner from '../components/LoadingSpinner';
 import CreateAnnouncementForm from '../components/CreateAnnouncementForm';
 import { Timestamp } from 'firebase/firestore';
 import AnnouncementDetailsModal from '../components/AnnouncementDetailsModal';
+import ProfileView from '../components/ProfileView';
+import logoCropped from '/logo-cropped.svg';
 
 interface Announcement {
   id: string;
@@ -23,6 +25,7 @@ interface Announcement {
   applicationDeadline: Timestamp;
   companyId: string;
   createdAt: Timestamp;
+  status?: 'pending' | 'approved' | 'rejected'; // Add the status field
 }
 
 const Dashboard: React.FC = () => {
@@ -42,11 +45,12 @@ const Dashboard: React.FC = () => {
   // State for the active filter (company name)
   const [activeCompanyFilter, setActiveCompanyFilter] = useState('Toate Companiile');
 
-  const [dashboardContent, setDashboardContent] = useState<'announcementsList' | 'createAnnouncement'>('announcementsList'); // State to control main content
+  const [dashboardContent, setDashboardContent] = useState<'announcementsList' | 'createAnnouncement' | 'profile'>('announcementsList'); // State to control main content, added 'profile'
 
   // State for announcement details modal
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
   const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
+  const [announcementToEdit, setAnnouncementToEdit] = useState<Announcement | null>(null);
 
   // State for successful announcement creation message
   const [announcementAddedSuccess, setAnnouncementAddedSuccess] = useState(false);
@@ -62,69 +66,70 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  // Function to fetch user data and announcements
+  const fetchUserDataAndAnnouncements = async () => {
+    if (!user) {
+      // Optionally redirect to login if not authenticated, though ProtectedRoute should handle this
+      setLoading(false);
+      console.log('Dashboard: user is null, stopping fetch.');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    console.log('Dashboard: Starting data fetch for user:', user.uid);
+
+    try {
+      // Fetch user data
+      const userDocRef = doc(db, 'users', user.uid);
+      const userDocSnap = await getDoc(userDocRef);
+      console.log('Dashboard: User document snapshot fetched.', userDocSnap.exists());
+
+      if (userDocSnap.exists()) {
+        const userData = userDocSnap.data();
+        setUserType(userData.userType || '');
+        setProfileStatus(userData.status || 'not_submitted');
+        // Display name based on user type
+        if (userData.userType === 'student') {
+          console.log('Dashboard: User is student, setting name.');
+          // Store first and last name separately for display
+          setUserName({ firstName: userData.firstName || '', lastName: userData.lastName || '' });
+        } else if (userData.userType === 'company') {
+          console.log('Dashboard: User is company, setting name.');
+          // Store company name in firstName for simplicity, or adjust logic
+          setUserName({ companyName: userData.companyName || '' });
+        } else {
+          console.log('Dashboard: User type unknown.');
+          setUserName({}); // Set to empty object for unknown type initially
+        }
+      } else {
+        console.log('Dashboard: User document does not exist for auth user.', user.uid);
+      }
+
+      // Fetch announcements
+      const q = query(collection(db, 'announcements'));
+      const querySnapshot = await getDocs(q);
+      console.log('Dashboard: Announcements query snapshot fetched.', querySnapshot.size, 'documents.');
+
+      const announcementsList: Announcement[] = [];
+      querySnapshot.forEach((doc) => {
+        // Map Firestore data to Announcement interface
+        announcementsList.push({ ...doc.data() as Announcement, id: doc.id });
+      });
+      setAnnouncements(announcementsList);
+
+    } catch (err: any) {
+      console.error("Error fetching data:", err);
+      setError('Failed to load data: ' + err.message);
+      console.log('Dashboard: Catch block executed, error set.', err.message);
+    } finally {
+      setLoading(false);
+      console.log('Dashboard: Finally block executed, loading set to false.');
+    }
+  };
+
   useEffect(() => {
     console.log('Dashboard useEffect running. user:', user, 'loadingAuth:', loadingAuth);
-    const fetchUserDataAndAnnouncements = async () => {
-      if (!user) {
-        // Optionally redirect to login if not authenticated, though ProtectedRoute should handle this
-        setLoading(false);
-        console.log('Dashboard: user is null, stopping fetch.');
-        return;
-      }
-
-      setLoading(true);
-      setError(null);
-      console.log('Dashboard: Starting data fetch for user:', user.uid);
-
-      try {
-        // Fetch user data
-        const userDocRef = doc(db, 'users', user.uid);
-        const userDocSnap = await getDoc(userDocRef);
-        console.log('Dashboard: User document snapshot fetched.', userDocSnap.exists());
-
-        if (userDocSnap.exists()) {
-          const userData = userDocSnap.data();
-          setUserType(userData.userType || '');
-          setProfileStatus(userData.status || 'not_submitted');
-          // Display name based on user type
-          if (userData.userType === 'student') {
-            console.log('Dashboard: User is student, setting name.');
-            // Store first and last name separately for display
-            setUserName({ firstName: userData.firstName || '', lastName: userData.lastName || '' });
-          } else if (userData.userType === 'company') {
-            console.log('Dashboard: User is company, setting name.');
-            // Store company name in firstName for simplicity, or adjust logic
-            setUserName({ companyName: userData.companyName || '' });
-          } else {
-            console.log('Dashboard: User type unknown.');
-            setUserName({}); // Set to empty object for unknown type initially
-          }
-        } else {
-          console.log('Dashboard: User document does not exist for auth user.', user.uid);
-        }
-
-        // Fetch announcements
-        const q = query(collection(db, 'announcements'));
-        const querySnapshot = await getDocs(q);
-        console.log('Dashboard: Announcements query snapshot fetched.', querySnapshot.size, 'documents.');
-
-        const announcementsList: Announcement[] = [];
-        querySnapshot.forEach((doc) => {
-          // Map Firestore data to Announcement interface
-          announcementsList.push({ ...doc.data() as Announcement, id: doc.id });
-        });
-        setAnnouncements(announcementsList);
-
-      } catch (err: any) {
-        console.error("Error fetching data:", err);
-        setError('Failed to load data: ' + err.message);
-        console.log('Dashboard: Catch block executed, error set.', err.message);
-      } finally {
-        setLoading(false);
-        console.log('Dashboard: Finally block executed, loading set to false.');
-      }
-    };
-
     fetchUserDataAndAnnouncements();
   }, [user]); // Rerun when user changes
 
@@ -175,83 +180,112 @@ const Dashboard: React.FC = () => {
     setShowAnnouncementModal(true);
   };
 
+  // Function to handle clicking "Editează" button
+  const handleEditAnnouncement = (announcement: Announcement) => {
+    setAnnouncementToEdit(announcement);
+    setDashboardContent('createAnnouncement'); // Reuse the create announcement form for editing
+  };
+
   // Function to close the details modal
   const handleCloseModal = () => {
     setSelectedAnnouncement(null);
     setShowAnnouncementModal(false);
   };
 
+  // Function to handle deleting an announcement
+  const handleDeleteAnnouncement = async (announcementId: string) => {
+    console.log(`Attempting to delete announcement with ID: ${announcementId}`);
+    // Optional: Add a confirmation dialog before deleting
+    if (window.confirm('Ești sigur că vrei să ștergi acest anunț?')) {
+      try {
+        const announcementRef = doc(db, 'announcements', announcementId);
+        await deleteDoc(announcementRef);
+        console.log('Announcement deleted successfully.');
+        // Refresh the list of announcements
+        // A simple way is to refetch all announcements
+        // A more efficient way would be to remove the deleted announcement from the state
+        setAnnouncements(prevAnnouncements => prevAnnouncements.filter(ann => ann.id !== announcementId));
+        // Optionally show a success message
+        console.log('Announcement list updated after deletion.');
+      } catch (err: any) {
+        console.error("Error deleting announcement:", err);
+        setError('Failed to delete announcement: ' + err.message);
+        // Optionally show an error message to the user
+      }
+    }
+  };
+
+  // Handle profile link click
+  const handleProfileClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setDashboardContent('profile'); // Set dashboard content to 'profile'
+  };
+
   // Placeholder UI based on the provided image style
   return (
     <div className="min-h-screen bg-gray-200 flex antialiased">
       {/* Sidebar */}
-      <div className="w-64 bg-[#1B263B] text-gray-300 p-6 space-y-6 flex flex-col shadow-lg fixed left-0 top-0 bottom-0 overflow-y-auto">
-        <div className="flex items-center space-x-4">
-          {/* User Icon and Name */}
-          <div className="flex flex-col items-center w-full">
-            {/* User Icon - Using FaUserGraduate for students, might need conditional rendering for companies */}
-            <div className="w-25 h-25 rounded-full bg-[#004080] flex items-center justify-center text-3xl text-white mb-2">
-              <FaUserGraduate /> {/* Or a company icon based on userType */}
-            </div>
-            {/* Display name based on user type */}
-            <div className="text-center">
-              {userName ? (
-                userType === 'student' && userName.lastName && userName.firstName ? (
-                  <span className="block text-lg font-bold text-gray-100 truncate px-2">{userName.lastName} {userName.firstName}</span>
-                ) : userType === 'company' && userName.companyName ? (
-                  <span className="block text-lg font-bold text-gray-100 truncate px-2">{userName.companyName}</span>
-                ) : (
-                  <span className="block text-lg font-bold text-gray-100 truncate px-2">Utilizator</span> // Fallback for unknown type or missing name data
-                )
+      <div className="w-64 bg-[#F5F6FA] text-black p-0 flex flex-col shadow-lg fixed left-0 top-0 bottom-0 overflow-y-auto">
+        {/* LOGO + NOTIFICARE SUS */}
+        <div className="flex flex-row items-center justify-between w-full px-6 pt-6 pb-2" style={{minHeight: '64px'}}>
+          <img src={logoCropped} alt="Logo" className="w-40 h-12 object-contain" />
+          <button className="text-black hover:text-[#2561A9] focus:outline-none transition duration-200">
+            <FaBell className="text-2xl" />
+          </button>
+        </div>
+        {/* AVATAR + NUME */}
+        <div className="flex flex-col items-center w-full gap-2 mt-4 mb-8">
+          <div className="w-24 h-24 rounded-2xl overflow-hidden bg-white flex items-center justify-center shadow-lg border-4 border-[#273247]">
+            {userType === 'company' ? <FaBuilding className="text-5xl text-[#273247]" /> : <FaUserGraduate className="text-5xl text-[#273247]" />}
+          </div>
+          <div className="text-center w-full">
+            {userName ? (
+              userType === 'student' && userName.lastName && userName.firstName ? (
+                <span className="block text-xl font-extrabold text-black truncate px-2">{userName.lastName} {userName.firstName}</span>
+              ) : userType === 'company' && userName.companyName ? (
+                <span className="block text-xl font-extrabold text-black truncate px-2">{userName.companyName}</span>
               ) : (
-                <span className="block text-lg font-bold text-gray-100 truncate px-2">Încărcare nume...</span> // Loading state for name
-              )}
-            </div>
+                <span className="block text-xl font-extrabold text-black truncate px-2">Utilizator</span>
+              )
+            ) : (
+              <span className="block text-xl font-extrabold text-black truncate px-2">Încărcare nume...</span>
+            )}
           </div>
         </div>
-        {/* Navigation Links */}
-        <nav className="space-y-2 flex-grow mt-6 text-sm">
-           {/* Profilul Meu (Common, moved to top) */}
-           <a href="#" className="flex items-center space-x-3 py-2.5 px-4 rounded transition duration-200 hover:bg-[#0056a0] text-gray-300">
-              <FaUserCircle className="text-xl text-gray-400" /><span>Profilul meu</span>
-           </a>
-
-           <a href="#" className="flex items-center space-x-3 py-2.5 px-4 rounded transition duration-200 hover:bg-[#0056a0] text-gray-300">
-              <FaHome className="text-xl text-gray-400" /><span>Ce este nou</span>
-           </a>
-
-           {userType === 'student' ? (
-               <>
-                   {/* Student Specific Links */}
-                   <a href="#" className="flex items-center space-x-3 py-2.5 px-4 rounded transition duration-200 bg-[#0056a0] text-white">
-                     <FaBriefcase className="text-xl text-white" /><span>Anunțuri de Joburi</span>
-                   </a>
-                   <a href="#" className="flex items-center space-x-3 py-2.5 px-4 rounded transition duration-200 hover:bg-[#0056a0] text-gray-300">
-                     <FaRocket className="text-xl text-gray-400" /><span>Provocări</span>
-                   </a>
-               </>
-           ) : userType === 'company' ? (
-               <>
-                   {/* Company Specific Links */}
-                   <a href="#" className={`flex items-center space-x-3 py-2.5 px-4 rounded transition duration-200 hover:bg-[#0056a0] ${dashboardContent === 'announcementsList' ? 'bg-[#0056a0]' : 'text-gray-300'}`}
-                     onClick={(e) => { e.preventDefault(); setDashboardContent('announcementsList'); }}>
-                     <FaBriefcase className={`text-xl ${dashboardContent === 'announcementsList' ? 'text-white' : 'text-gray-400'}`} /><span>Anunțurile Mele</span> {/* Changed text and icon color */}
-                   </a>
-                   <a href="#" className={`flex items-center space-x-3 py-2.5 px-4 rounded transition duration-200 hover:bg-[#0056a0] ${dashboardContent === 'createAnnouncement' ? 'bg-[#0056a0]' : 'text-gray-300'}`}
-                     onClick={(e) => { e.preventDefault(); setDashboardContent('createAnnouncement'); }}>
-                     <FaBriefcase className={`text-xl ${dashboardContent === 'createAnnouncement' ? 'text-white' : 'text-gray-400'}`} /><span>Adaugă Anunț Nou</span> {/* New link and icon color */}
-                   </a>
-               </>
-           ) : null /* Handle other user types or loading state */}
+        {/* MENIU PRINCIPAL */}
+        <nav className="flex flex-col gap-2 px-4">
+          <a href="#" className={`flex items-center gap-3 py-3 px-4 rounded-xl font-bold text-base transition duration-200 ${dashboardContent === 'profile' ? 'bg-[#2561A9] text-white' : 'text-black hover:bg-[#E3EAFD] hover:text-black'}`} onClick={handleProfileClick}>
+            <FaUserCircle className={`text-xl ${dashboardContent === 'profile' ? 'text-white' : 'text-black'}`} />
+            <span>Profilul meu</span>
+          </a>
+          {userType === 'student' || userType === 'company' ? (
+            <>
+              <a href="#" className={`flex items-center gap-3 py-3 px-4 rounded-xl font-bold text-base transition duration-200 ${dashboardContent === 'announcementsList' ? 'bg-[#2561A9] text-white' : 'text-black hover:bg-[#E3EAFD] hover:text-black'}`} onClick={e => { e.preventDefault(); setDashboardContent('announcementsList'); }}>
+                <FaBriefcase className={`text-xl ${dashboardContent === 'announcementsList' ? 'text-white' : 'text-black'}`} />
+                <span>{userType === 'student' ? 'Anunțuri de Joburi' : 'Anunțurile Mele'}</span>
+              </a>
+              {userType === 'company' && (
+                <a href="#" className={`flex items-center gap-3 py-3 px-4 rounded-xl font-bold text-base transition duration-200 ${dashboardContent === 'createAnnouncement' ? 'bg-[#2561A9] text-white' : 'text-black hover:bg-[#E3EAFD] hover:text-black'}`} onClick={e => { e.preventDefault(); setDashboardContent('createAnnouncement'); }}>
+                  <FaPlus className={`text-xl ${dashboardContent === 'createAnnouncement' ? 'text-white' : 'text-black'}`} />
+                  <span>Adaugă Anunț Nou</span>
+                </a>
+              )}
+            </>
+          ) : null}
         </nav>
-
-        {/* Bottom Links */}
-        <div className="border-t border-gray-700 pt-4 space-y-2 mt-auto"> {/* Removed Settings link */}
-            {/* Disconnect Link */}
-            <a href="#" className="flex items-center space-x-3 py-2.5 px-4 rounded transition duration-200 hover:bg-red-700 text-gray-300" onClick={handleLogout}>
-               <FaPowerOff className="text-xl text-gray-400" /><span>Deconectează-te</span>
-            </a>
-         </div>
+        {/* Spacer pentru a împinge butoanele jos */}
+        <div className="flex-grow" />
+        {/* BUTOANE JOS */}
+        <div className="border-t border-gray-300 pt-6 pb-4 px-6 flex flex-col gap-2">
+          <a href="#" className="flex items-center gap-3 py-3 px-4 rounded-xl font-bold text-black text-base transition duration-200 hover:bg-[#E3EAFD] hover:text-black" onClick={e => { e.preventDefault(); navigate('/'); }}>
+            <FaHome className="text-xl" />
+            <span>Acasă</span>
+          </a>
+          <a href="#" onClick={handleLogout} className="flex items-center gap-3 py-2 px-2 rounded-xl font-bold text-black text-base transition duration-200 hover:bg-[#F2542D] hover:text-white">
+            <FaPowerOff className="text-xl" />
+            <span>Deconectează-te</span>
+          </a>
+        </div>
       </div>
 
       {/* Main Content Wrapper to create space for fixed sidebar */}
@@ -330,7 +364,18 @@ const Dashboard: React.FC = () => {
                 const matchesSearch = announcement.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                                       announcement.companyName.toLowerCase().includes(searchTerm.toLowerCase());
                 const matchesCompany = activeCompanyFilter === 'Toate Companiile' || announcement.companyName === activeCompanyFilter;
-                return matchesSearch && matchesCompany;
+
+                // Determine if the logged-in user is the company that posted this announcement
+                const isOwnAnnouncement = user && user.uid === announcement.companyId;
+
+                // Filter logic:
+                // If it's the company's own announcement, include it regardless of status.
+                // If it's NOT the company's own, only include if status is 'approved'.
+                if (isOwnAnnouncement) {
+                  return matchesSearch && matchesCompany;
+                } else {
+                  return matchesSearch && matchesCompany && announcement.status === 'approved';
+                }
               }).length === 0 && !showCompanyFilterOptions ? (
                 <div className="text-center text-gray-600 text-xl mt-10 p-6 bg-white rounded-lg shadow-sm">
                   <p>Momentan nu există anunțuri de joburi disponibile.</p>
@@ -342,7 +387,16 @@ const Dashboard: React.FC = () => {
                     const matchesSearch = announcement.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                                           announcement.companyName.toLowerCase().includes(searchTerm.toLowerCase());
                     const matchesCompany = activeCompanyFilter === 'Toate Companiile' || announcement.companyName === activeCompanyFilter;
-                    return matchesSearch && matchesCompany;
+
+                    // Determine if the logged-in user is the company that posted this announcement
+                    const isOwnAnnouncement = user && user.uid === announcement.companyId;
+
+                    // Filter logic (repeated for mapping, ensures consistency):
+                    if (isOwnAnnouncement) {
+                      return matchesSearch && matchesCompany;
+                    } else {
+                      return matchesSearch && matchesCompany && announcement.status === 'approved';
+                    }
                   }).map((announcement) => (
                     <div key={announcement.id} className="bg-white p-6 rounded-lg shadow-md flex flex-col"> {/* Changed to flex-col */}
                       {/* Announcement Title (Centered at the top) */}
@@ -354,14 +408,35 @@ const Dashboard: React.FC = () => {
                         <div className="flex-shrink-0 w-16 h-16 rounded-full bg-[#004080] flex items-center justify-center text-3xl text-white"> {/* Adjusted size and color */}
                           <FaBuilding />
                         </div>
-                        {/* Company Name */}
-                        <div>
+                        {/* Company Name and potentially Status */}
+                        <div className="flex flex-col">
                            <p className="text-xl font-bold text-[#1B263B] leading-tight">{announcement.companyName}</p> {/* Company name larger and bold */}
+
+                           {/* Status Indicator (only for the company that posted the announcement) */}
+                           {user && user.uid === announcement.companyId && announcement.status && (
+                             <div className="flex items-center mt-1">
+                               <span className={
+                                 `w-3 h-3 rounded-full mr-2 ` +
+                                 (announcement.status === 'approved' ? 'bg-green-600' :
+                                  announcement.status === 'rejected' ? 'text-red-600 bg-red-600' : 'bg-gray-500') // Added bg-red-600 for consistency
+                               }></span>
+                               <span className={
+                                 `text-sm font-semibold ` +
+                                 (announcement.status === 'approved' ? 'text-green-600' :
+                                  announcement.status === 'rejected' ? 'text-red-600' : 'text-gray-500')
+                               }>
+                                 {announcement.status === 'approved' && 'Postat'}
+                                 {announcement.status === 'pending' && 'Asteapta aprobarea'}
+                                 {announcement.status === 'rejected' && 'Respins'}
+                               </span>
+                             </div>
+                           )}
+
                         </div>
                       </div>
 
                       {/* Announcement Details Area (Remaining space) */}
-                      <div className="flex-1 mt-4"> {/* Added margin-top */}
+                      <div className="flex-1 mt-4">
                         {/* Display application deadline */}
                         <p className="text-gray-600 text-sm mt-1">Data limită aplicare: {formatDate(announcement.applicationDeadline)}</p>
                         {/* Add more announcement details */}
@@ -375,6 +450,27 @@ const Dashboard: React.FC = () => {
                             Detalii
                           </button>
                         </div>
+
+                        {/* Edit and Delete Buttons (only for the posting company) */}
+                        {user && user.uid === announcement.companyId && (
+                          <div className="mt-4 flex space-x-2">
+                            {/* Edit Button (Placeholder) */}
+                            <button
+                              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm"
+                              onClick={() => handleEditAnnouncement(announcement)}
+                            >
+                              Editează
+                            </button>
+                            {/* Delete Button */}
+                            <button
+                              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-sm"
+                              onClick={() => handleDeleteAnnouncement(announcement.id)}
+                            >
+                              Șterge
+                            </button>
+                          </div>
+                        )}
+
                       </div>
                     </div>
                   ))}
@@ -382,7 +478,16 @@ const Dashboard: React.FC = () => {
               )}
             </>
           ) : dashboardContent === 'createAnnouncement' && userType === 'company' ? (
-            <CreateAnnouncementForm onAnnouncementAdded={() => { setAnnouncementAddedSuccess(true); setDashboardContent('announcementsList'); }} />
+            <CreateAnnouncementForm
+              onAnnouncementAdded={() => {
+                setAnnouncementAddedSuccess(true);
+                setDashboardContent('announcementsList');
+                fetchUserDataAndAnnouncements(); // Refresh list after adding/editing
+              }}
+              announcementToEdit={announcementToEdit}
+            />
+          ) : dashboardContent === 'profile' ? ( // Render ProfileView when dashboardContent is 'profile'
+            <ProfileView />
           ) : (
             <div className="text-center text-gray-600 text-xl mt-10 p-6 bg-white rounded-lg shadow-sm">
               <p>Selectați o opțiune din meniul lateral.</p> {/* Fallback message */}

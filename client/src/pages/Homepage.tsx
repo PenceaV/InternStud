@@ -2,6 +2,9 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import Navbar from '../components/Navbar';
 import { Link } from 'react-router-dom';
+import { useAuthState } from 'react-firebase-hooks/auth';
+import { auth } from '../firebaseConfig';
+import { useNavigate } from 'react-router-dom';
 
 import growthImage from '/growth.png';
 
@@ -29,6 +32,9 @@ const features = [
 ];
 
 const Homepage: React.FC = () => {
+  const [user] = useAuthState(auth);
+  const navigate = useNavigate();
+
   return (
     <div className="w-full min-h-screen flex flex-col bg-white text-gray-900 font-sans">
       <Navbar />
@@ -40,15 +46,26 @@ const Homepage: React.FC = () => {
           <p className="text-lg md:text-xl mb-8 text-gray-300">
             InternStud este platforma ta completă pentru a te conecta cu companiile, a exersa interviuri și a străluci ca student.
           </p>
-          <div className="flex justify-center md:justify-start space-x-4">
-            <Link to="/register">
+          <div className="flex flex-col sm:flex-row justify-center md:justify-start space-y-4 sm:space-y-0 sm:space-x-4">
+            {user ? (
               <motion.button
-                whileHover={{ scale: 1.05, backgroundColor: '#003f7a', boxShadow: '0px 0px 15px rgba(0,0,0,0.3)' }}
+                whileHover={{ scale: 1.05, backgroundColor: '#c63d1a' }}
                 whileTap={{ scale: 0.97 }}
-                className="w-auto h-auto px-6 py-4 bg-[#0056a0] text-white rounded-full transition duration-300 font-bold text-xl shadow-lg">
-                <p className="text-white font-bold text-xl">Începe acum</p>
+                onClick={() => navigate('/dashboard')}
+                className="w-auto h-auto px-6 py-4 bg-[#F2542D] text-white rounded-full transition duration-300 font-bold text-xl shadow-lg"
+              >
+                <span className="text-white font-bold text-xl">Vezi anunțuri</span>
               </motion.button>
-            </Link>
+            ) : (
+              <Link to="/register">
+                <motion.button
+                  whileHover={{ scale: 1.05, backgroundColor: '#003f7a', boxShadow: '0px 0px 15px rgba(0,0,0,0.3)' }}
+                  whileTap={{ scale: 0.97 }}
+                  className="w-auto h-auto px-6 py-4 bg-[#0056a0] text-white rounded-full transition duration-300 font-bold text-xl shadow-lg">
+                  <p className="text-white font-bold text-xl">Începe acum</p>
+                </motion.button>
+              </Link>
+            )}
           </div>
         </div>
 

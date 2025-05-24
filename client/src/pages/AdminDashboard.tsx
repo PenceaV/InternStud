@@ -20,6 +20,21 @@ interface CompanyUser {
   // Add other fields as needed
 }
 
+interface Announcement {
+  id: string;
+  title: string;
+  description: string;
+  companyId: string;
+  status: 'pending' | 'approved' | 'rejected';
+  location?: string;
+  jobType?: string;
+  salary?: string;
+  requirements?: string;
+  benefits?: string;
+  companyName?: string;
+  // Add other announcement fields as needed
+}
+
 // Helper function to format Company Type string (e.g., add space before caps)
 const formatCompanyType = (type: string | undefined): string => {
     if (!type) return '';
@@ -29,6 +44,7 @@ const formatCompanyType = (type: string | undefined): string => {
 
 const AdminDashboard: React.FC = () => {
   const [pendingCompanies, setPendingCompanies] = useState<CompanyUser[]>([]);
+  const [pendingAnnouncements, setPendingAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -59,6 +75,7 @@ const AdminDashboard: React.FC = () => {
 
             if (userData.isAdmin) {
               fetchPendingCompanies(); // Fetch data only if admin
+              fetchPendingAnnouncements(); // Fetch pending announcements if admin
             } else {
               setLoading(false); // Stop loading if not admin
             }
@@ -103,6 +120,29 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
+  const fetchPendingAnnouncements = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const announcementsRef = collection(db, 'announcements');
+      const q = query(announcementsRef, where('status', '==', 'pending'));
+      const querySnapshot = await getDocs(q);
+
+      const announcementsList: Announcement[] = [];
+      querySnapshot.forEach((doc) => {
+        announcementsList.push({ ...doc.data() as Announcement, id: doc.id });
+      });
+      setPendingAnnouncements(announcementsList);
+    } catch (err: any) {
+      console.error("Error fetching pending announcements:", err);
+      setError('Failed to fetch pending announcements: ' + err.message);
+    } finally {
+      // Note: Loading state might be set false prematurely if companies fetching takes longer
+      // Consider separate loading states or a combined approach
+      setLoading(false);
+    }
+  };
+
   const handleApprove = async (companyId: string) => {
     // TODO: Implement logic to update status to 'approved'
     console.log(`Approve company with ID: ${companyId}`);
@@ -117,6 +157,8 @@ const AdminDashboard: React.FC = () => {
     } catch (err: any) {
         console.error("Error approving company:", err);
         setError('Failed to approve company: ' + err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -134,6 +176,38 @@ const AdminDashboard: React.FC = () => {
     } catch (err: any) {
         console.error("Error rejecting company:", err);
         setError('Failed to reject company: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleApproveAnnouncement = async (announcementId: string) => {
+    console.log(`Approve announcement with ID: ${announcementId}`);
+    try {
+      const announcementRef = doc(db, 'announcements', announcementId);
+      await updateDoc(announcementRef, {
+        status: 'approved',
+      });
+      // Refresh the list
+      fetchPendingAnnouncements();
+    } catch (err: any) {
+      console.error("Error approving announcement:", err);
+      setError('Failed to approve announcement: ' + err.message);
+    }
+  };
+
+  const handleRejectAnnouncement = async (announcementId: string) => {
+    console.log(`Reject announcement with ID: ${announcementId}`);
+    try {
+      const announcementRef = doc(db, 'announcements', announcementId);
+      await updateDoc(announcementRef, {
+        status: 'rejected',
+      });
+      // Refresh the list
+      fetchPendingAnnouncements();
+    } catch (err: any) {
+      console.error("Error rejecting announcement:", err);
+      setError('Failed to reject announcement: ' + err.message);
     }
   };
 
@@ -212,6 +286,47 @@ const AdminDashboard: React.FC = () => {
                   </button>
                   <button
                     onClick={() => handleReject(company.id)}
+                    className="bg-red-600 text-white px-6 py-2 rounded-md font-semibold hover:bg-red-700 transition-colors shadow-md"
+                  >
+                    Reject
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <h2 className="text-2xl font-bold text-center text-white mb-8 mt-12">Pending Announcements</h2>
+
+        {pendingAnnouncements.length === 0 ? (
+          <div className="bg-white text-gray-800 p-6 rounded-lg shadow-md text-center">
+            <p className="text-xl">No pending announcements.</p>
+          </div>
+        ) : (
+          <ul className="space-y-6">
+            {pendingAnnouncements.map((announcement) => (
+              <li key={announcement.id} className="bg-white text-gray-800 p-6 rounded-lg shadow-md flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0">
+                <div className="flex-grow space-y-2">
+                  <h2 className="text-xl font-semibold text-[#1B263B]">{announcement.title}</h2>
+                  <p className="text-gray-600"><strong>Description:</strong> {announcement.description}</p>
+                  {/* Display other relevant announcement info here */}
+                  {announcement.companyName && <p className="text-gray-600"><strong>Companie:</strong> {announcement.companyName}</p>}
+                  {announcement.location && <p className="text-gray-600"><strong>Locație:</strong> {announcement.location}</p>}
+                  {announcement.jobType && <p className="text-gray-600"><strong>Tip Job:</strong> {announcement.jobType}</p>}
+                  {announcement.salary && <p className="text-gray-600"><strong>Salariu:</strong> {announcement.salary}</p>}
+                  {announcement.requirements && <p className="text-gray-600"><strong>Cerințe:</strong> {announcement.requirements}</p>}
+                  {announcement.benefits && <p className="text-gray-600"><strong>Beneficii:</strong> {announcement.benefits}</p>}
+                  <p className="text-gray-600"><strong>Company ID:</strong> {announcement.companyId}</p>
+                </div>
+                <div className="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-4">
+                  <button
+                    onClick={() => handleApproveAnnouncement(announcement.id)}
+                    className="bg-green-600 text-white px-6 py-2 rounded-md font-semibold hover:bg-green-700 transition-colors shadow-md"
+                  >
+                    Approve
+                  </button>
+                  <button
+                    onClick={() => handleRejectAnnouncement(announcement.id)}
                     className="bg-red-600 text-white px-6 py-2 rounded-md font-semibold hover:bg-red-700 transition-colors shadow-md"
                   >
                     Reject

@@ -9,6 +9,7 @@ import "react-datepicker/dist/react-datepicker.css";
 
 interface StudentProfileFormProps {
   userType?: 'student'; // Define userType prop as optional, since it might not always be 'student'
+  onProfileUpdated?: () => void;
 }
 
 interface ExperienceEntry {
@@ -26,7 +27,7 @@ interface EducationEntry {
   endDate: Date | null;
 }
 
-const StudentProfileForm: React.FC<StudentProfileFormProps> = ({ userType }) => {
+const StudentProfileForm: React.FC<StudentProfileFormProps> = ({ userType, onProfileUpdated }) => {
   const [bio, setBio] = useState('');
   const [profileImage, setProfileImage] = useState<File | null>(null);
   const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
@@ -198,7 +199,11 @@ const StudentProfileForm: React.FC<StudentProfileFormProps> = ({ userType }) => 
         profileCompleted: true,
       });
 
-      navigate('/dashboard');
+      if (onProfileUpdated) {
+        onProfileUpdated();
+      } else {
+        navigate('/dashboard');
+      }
 
     } catch (err: any) {
       console.error("Eroare la salvarea profilului studentului:", err);
@@ -412,6 +417,7 @@ const StudentProfileForm: React.FC<StudentProfileFormProps> = ({ userType }) => 
                          dateFormat="dd/MM/yyyy"
                          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-[#0056a0] focus:border-[#0056a0] text-gray-900"
                          placeholderText="dd/mm/yyyy"
+                         disabled={entry.isPresent}
                        />
                     </div>
                  </div>

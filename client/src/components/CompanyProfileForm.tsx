@@ -7,9 +7,10 @@ import { FaBuilding, FaCamera, FaLink } from 'react-icons/fa'; // Add Building a
 
 interface CompanyProfileFormProps {
   userType: 'student' | 'company';
+  onProfileUpdated?: () => void;
 }
 
-const CompanyProfileForm: React.FC<CompanyProfileFormProps> = ({ userType }) => {
+const CompanyProfileForm: React.FC<CompanyProfileFormProps> = ({ userType, onProfileUpdated }) => {
   // State for LinkedIn-like fields
   const [companyName, setCompanyName] = useState('');
   // Removed linkedinUrl state
@@ -84,8 +85,11 @@ const CompanyProfileForm: React.FC<CompanyProfileFormProps> = ({ userType }) => 
       });
       console.log('handleSubmit: User document updated.'); // Log update finish
 
-      console.log('handleSubmit: Navigating to dashboard.'); // Log navigation
-      navigate('/dashboard');
+      if (onProfileUpdated) {
+        onProfileUpdated();
+      } else {
+        navigate('/dashboard');
+      }
 
     } catch (err: any) {
       console.error("handleSubmit: Catch block entered, error:", err);
