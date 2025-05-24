@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import Navbar from '../components/Navbar';
 import { Link } from 'react-router-dom';
@@ -34,6 +34,51 @@ const features = [
 const Homepage: React.FC = () => {
   const [user] = useAuthState(auth);
   const navigate = useNavigate();
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    message: ''
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setSubmitStatus('idle');
+
+    try {
+      const response = await fetch('http://localhost:3001/api/contact', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...formData,
+          to: 'alexdragomirescu@internstud.ro'
+        }),
+      });
+
+      if (response.ok) {
+        setSubmitStatus('success');
+        setFormData({ name: '', email: '', message: '' });
+      } else {
+        setSubmitStatus('error');
+      }
+    } catch (error) {
+      setSubmitStatus('error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="w-full min-h-screen flex flex-col bg-white text-gray-900 font-sans">
@@ -157,13 +202,48 @@ const Homepage: React.FC = () => {
           <p className="text-lg leading-relaxed text-gray-700 mb-12">
             Ai întrebări sau sugestii? Trimite-ne un mesaj și îți vom răspunde cât mai curând!
           </p>
-          <form className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
-            <input required type="text" placeholder="Nume complet" className="border border-gray-300 p-3 rounded-lg w-full" />
-            <input required type="email" placeholder="Email" className="border border-gray-300 p-3 rounded-lg w-full" />
-            <textarea required placeholder="Mesaj" className="border border-gray-300 p-3 rounded-lg md:col-span-2 h-32 resize-none w-full"></textarea>
-            <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="md:col-span-2 bg-[#1B263B] text-white py-3 px-6 rounded-lg font-semibold transition">
-              Trimite mesajul
+          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
+            <input 
+              required 
+              type="text" 
+              name="name"
+              value={formData.name}
+              onChange={handleInputChange}
+              placeholder="Nume complet" 
+              className="border border-gray-300 p-3 rounded-lg w-full" 
+            />
+            <input 
+              required 
+              type="email" 
+              name="email"
+              value={formData.email}
+              onChange={handleInputChange}
+              placeholder="Email" 
+              className="border border-gray-300 p-3 rounded-lg w-full" 
+            />
+            <textarea 
+              required 
+              name="message"
+              value={formData.message}
+              onChange={handleInputChange}
+              placeholder="Mesaj" 
+              className="border border-gray-300 p-3 rounded-lg md:col-span-2 h-32 resize-none w-full"
+            ></textarea>
+            <motion.button 
+              whileHover={{ scale: 1.05 }} 
+              whileTap={{ scale: 0.95 }} 
+              type="submit"
+              disabled={isSubmitting}
+              className="md:col-span-2 bg-[#1B263B] text-white py-3 px-6 rounded-lg font-semibold transition disabled:opacity-50"
+            >
+              {isSubmitting ? 'Se trimite...' : 'Trimite mesajul'}
             </motion.button>
+            {submitStatus === 'success' && (
+              <p className="md:col-span-2 text-green-600">Mesajul a fost trimis cu succes!</p>
+            )}
+            {submitStatus === 'error' && (
+              <p className="md:col-span-2 text-red-600">A apărut o eroare la trimiterea mesajului. Vă rugăm să încercați din nou.</p>
+            )}
           </form>
         </motion.div>
       </section>
