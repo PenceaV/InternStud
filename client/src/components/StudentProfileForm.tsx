@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { auth, db, storage } from '../firebaseConfig';
+import { auth, db } from '../firebaseConfig';
 import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import { FaCamera, FaUpload, FaUserGraduate, FaLinkedin, FaGithub, FaLink, FaBriefcase, FaGraduationCap, FaTools } from 'react-icons/fa'; // Added camera, upload, user graduate icons back
@@ -27,9 +27,8 @@ interface EducationEntry {
   endDate: Date | null;
 }
 
-const StudentProfileForm: React.FC<StudentProfileFormProps> = ({ userType, onProfileUpdated }) => {
+const StudentProfileForm: React.FC<StudentProfileFormProps> = ({ onProfileUpdated }) => {
   const [bio, setBio] = useState('');
-  const [profileImage, setProfileImage] = useState<File | null>(null);
   const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');

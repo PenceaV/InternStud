@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { db, auth } from '../firebaseConfig';
 import { collection, query, getDocs, doc, getDoc, deleteDoc, where, updateDoc, addDoc } from 'firebase/firestore';
 import { useAuthState } from 'react-firebase-hooks/auth';
-import { FaUserGraduate, FaHome, FaBriefcase, FaUserCircle, FaRocket, FaCog, FaPowerOff, FaFilter, FaBuilding, FaBell, FaPlus, FaCheck, FaTimes, FaEnvelope, FaGraduationCap, FaTools } from 'react-icons/fa';
+import { FaUserGraduate, FaHome, FaBriefcase, FaUserCircle, FaPowerOff, FaFilter, FaBuilding, FaPlus, FaEnvelope, FaGraduationCap, FaTools } from 'react-icons/fa';
 import { signOut } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
 import LoadingSpinner from '../components/LoadingSpinner';

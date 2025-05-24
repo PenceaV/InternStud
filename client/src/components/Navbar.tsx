@@ -10,7 +10,7 @@ const logo = './logo-cropped.svg';
 const Navbar: React.FC = () => {
   const location = useLocation();
   const isHomepage = location.pathname === '/';
-  const [user, loading, error] = useAuthState(auth);
+  const [user] = useAuthState(auth);
   const navigate = useNavigate();
 
   const scrollToSection = (sectionId: string) => {

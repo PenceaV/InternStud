@@ -22,9 +22,6 @@ const CompanyProfileForm: React.FC<CompanyProfileFormProps> = ({ userType, onPro
   const [description, setDescription] = useState('');
   const [verification, setVerification] = useState(false);
   
-  const [logo, setLogo] = useState<File | null>(null); // Add logo state back
-  const [logoUrl, setLogoUrl] = useState<string | null>(null); // Add logoUrl state back
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
@@ -126,14 +123,7 @@ const CompanyProfileForm: React.FC<CompanyProfileFormProps> = ({ userType, onPro
                      <label className="block text-sm font-medium text-[#1B263B]">Logo</label>
                      <div className="mt-1 flex items-center space-x-4">
                        <div className="relative flex-shrink-0 w-24 h-24 rounded-full overflow-hidden border-2 border-[#0056a0] bg-gray-100 flex items-center justify-center">
-                         {logoUrl ? (
-                           <img src={logoUrl} alt="Company Logo" className="w-full h-full object-cover" />
-                         ) : (
-                           <div className="w-full h-full flex items-center justify-center text-gray-500 text-4xl">
-                             <FaBuilding size={40} />
-                           </div>
-                         )}
-                         {/* Upload Button with Hover Effect */}
+                         {/* Logo Upload */}
                          <label className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center text-white text-xl cursor-default opacity-0 hover:opacity-100 transition-opacity">
                             <FaCamera size={30} />
                          </label>

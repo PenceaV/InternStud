@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { auth, db } from '../firebaseConfig';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { useAuthState } from 'react-firebase-hooks/auth';
-import StudentProfileForm from './StudentProfileForm'; // Assuming this component exists
-import CompanyProfileForm from './CompanyProfileForm'; // Assuming this component exists
 import EditProfileForm from './EditProfileForm';
 import { FaUserGraduate, FaBuilding, FaLinkedin, FaGithub, FaLink, FaGraduationCap, FaBriefcase, FaTools, FaEdit, FaGlobe, FaEye, FaMapMarkerAlt, FaPhone, FaEnvelope } from 'react-icons/fa';
 import { Timestamp } from 'firebase/firestore';

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
-import { FaUserGraduate, FaBuilding, FaCamera, FaLinkedin, FaGithub, FaLink, FaGraduationCap, FaBriefcase, FaTools, FaGlobe, FaPhone, FaEnvelope } from 'react-icons/fa';
+import { FaUserGraduate, FaBuilding } from 'react-icons/fa';
 
 interface EditProfileFormProps {
   userType: 'student' | 'company';
@@ -173,7 +173,7 @@ const EditProfileForm: React.FC<EditProfileFormProps> = ({ userType, userData, o
                   </div>
                   {education.length > 1 && (
                     <button type="button" className="text-red-600 text-xs self-end" onClick={() => {
-                      setEducation(education.filter((_, i) => i !== idx));
+                      setEducation(education.filter((_, i: number) => i !== idx));
                     }}>Elimină</button>
                   )}
                 </div>
@@ -237,7 +237,7 @@ const EditProfileForm: React.FC<EditProfileFormProps> = ({ userType, userData, o
                   </div>
                   {experience.length > 1 && (
                     <button type="button" className="text-red-600 text-xs self-end" onClick={() => {
-                      setExperience(experience.filter((_, i) => i !== idx));
+                      setExperience(experience.filter((_, i: number) => i !== idx));
                     }}>Elimină</button>
                   )}
                 </div>

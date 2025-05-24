@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { db } from '../firebaseConfig';
-import { collection, query, where, getDocs, doc, updateDoc, orderBy, limit, onSnapshot, deleteDoc, writeBatch } from 'firebase/firestore';
+import { collection, query, where, doc, updateDoc, orderBy, limit, onSnapshot, deleteDoc } from 'firebase/firestore';
 import { FaBell, FaCheck, FaTimes } from 'react-icons/fa';
 import { Timestamp } from 'firebase/firestore';
 
@@ -111,25 +111,6 @@ const NotificationsDropdown: React.FC<NotificationsDropdownProps> = ({ userId, o
     }
   };
 
-  const handleMarkAllAsRead = async () => {
-    try {
-      const unreadNotifications = notifications.filter(n => !n.read);
-      const updatePromises = unreadNotifications.map(notification =>
-        updateDoc(doc(db, 'notifications', notification.id), { read: true })
-      );
-      
-      await Promise.all(updatePromises);
-      
-      setNotifications(prevNotifications =>
-        prevNotifications.map(notification => ({ ...notification, read: true }))
-      );
-      
-      setUnreadCount(0);
-    } catch (err) {
-      console.error("Error marking all notifications as read:", err);
-    }
-  };
-
   const handleDeleteNotification = async (notificationId: string) => {
     try {
       const notificationRef = doc(db, 'notifications', notificationId);
@@ -144,19 +125,13 @@ const NotificationsDropdown: React.FC<NotificationsDropdownProps> = ({ userId, o
     if (notifications.length === 0) return;
 
     try {
-      const batch = writeBatch(db);
-      // Fetch all notifications for the user (onSnapshot query is limited, need a separate query for all)
-      const q = query(
-        collection(db, 'notifications'),
-        where('userId', '==', userId)
+      // Delete all notifications currently in the state
+      // Using Promise.all to run deletions concurrently
+      const deletePromises = notifications.map(notification => 
+        deleteDoc(doc(db, 'notifications', notification.id))
       );
-      const querySnapshot = await getDocs(q);
-
-      querySnapshot.forEach((doc) => {
-        batch.delete(doc.ref);
-      });
-
-      await batch.commit();
+      await Promise.all(deletePromises);
+      console.log('All notifications deleted successfully.');
       // UI will update automatically due to onSnapshot
     } catch (err) {
       console.error("Error deleting all notifications:", err);
@@ -191,12 +166,14 @@ const NotificationsDropdown: React.FC<NotificationsDropdownProps> = ({ userId, o
         <div className="p-4 border-b border-gray-200 flex justify-between items-center">
           <h3 className="text-xl font-bold text-gray-900">Notificări</h3>
           {notifications.length > 0 && (
-            <button
-              onClick={handleDeleteAllNotifications}
-              className="text-sm text-red-600 hover:text-red-800"
-            >
-              Șterge Toate
-            </button>
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={handleDeleteAllNotifications}
+                className="text-sm text-red-600 hover:text-red-800"
+              >
+                Șterge Toate
+              </button>
+            </div>
           )}
         </div>
 

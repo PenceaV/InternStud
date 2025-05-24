@@ -143,8 +143,7 @@ const CreateAnnouncementForm: React.FC<CreateAnnouncementFormProps> = ({ onAnnou
         console.log('handleSubmit: Attempting to update document in Firestore.', announcementToEdit.id);
         const announcementRef = doc(db, 'announcements', announcementToEdit.id);
         // Exclude createdAt and other fields that shouldn't be updated via edit
-        const { createdAt, ...updatedData } = announcementData; // Destructure to exclude createdAt
-        await updateDoc(announcementRef, { ...updatedData, status: 'pending' });
+        await updateDoc(announcementRef, { ...announcementData, status: 'pending' });
         console.log('Document updated successfully.');
         setSuccess(true);
       } else {

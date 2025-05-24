@@ -3,7 +3,7 @@ import Navbar from '../components/Navbar';
 import StudentProfileForm from '../components/StudentProfileForm';
 import CompanyProfileForm from '../components/CompanyProfileForm';
 import { auth, db } from '../firebaseConfig';
-import { doc, onSnapshot, getDoc } from 'firebase/firestore';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { useNavigate } from 'react-router-dom';
 
