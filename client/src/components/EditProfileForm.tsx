@@ -28,9 +28,6 @@ const EditProfileForm: React.FC<EditProfileFormProps> = ({ userType, userData, o
 
   // State pentru companie
   const [companyName, setCompanyName] = useState(userData.companyName || '');
-  const [industry, setIndustry] = useState(userData.industry || '');
-  const [companySize, setCompanySize] = useState(userData.companySize || '');
-  const [companyType, setCompanyType] = useState(userData.companyType || '');
   const [description, setDescription] = useState(userData.bio || '');
   const [companyWebsite, setCompanyWebsite] = useState(userData.website || '');
   const [companyLinkedin, setCompanyLinkedin] = useState(userData.linkedin || '');
@@ -62,9 +59,6 @@ const EditProfileForm: React.FC<EditProfileFormProps> = ({ userType, userData, o
       } else {
         await updateDoc(userDocRef, {
           companyName,
-          industry,
-          companySize,
-          companyType,
           bio: description,
           website: companyWebsite,
           linkedin: companyLinkedin,
@@ -173,7 +167,7 @@ const EditProfileForm: React.FC<EditProfileFormProps> = ({ userType, userData, o
                   </div>
                   {education.length > 1 && (
                     <button type="button" className="text-red-600 text-xs self-end" onClick={() => {
-                      setEducation(education.filter((_, i: number) => i !== idx));
+                      setEducation(education.filter((i: number) => i !== idx));
                     }}>Elimină</button>
                   )}
                 </div>
@@ -237,7 +231,7 @@ const EditProfileForm: React.FC<EditProfileFormProps> = ({ userType, userData, o
                   </div>
                   {experience.length > 1 && (
                     <button type="button" className="text-red-600 text-xs self-end" onClick={() => {
-                      setExperience(experience.filter((_, i: number) => i !== idx));
+                      setExperience(experience.filter((i: number) => i !== idx));
                     }}>Elimină</button>
                   )}
                 </div>

@@ -1,7 +1,5 @@
 import React from 'react';
 import { Timestamp } from 'firebase/firestore';
-import { db } from '../firebaseConfig';
-import { collection, addDoc, query, where, getDocs, getDoc, doc } from 'firebase/firestore';
 
 // Define the interface for the Announcement data (should match the one in Dashboard.tsx)
 interface Announcement {

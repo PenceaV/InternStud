@@ -73,17 +73,26 @@ const Navbar: React.FC = () => {
       {/* Desktop Buttons */}
       <div className="space-x-4 flex">
         {user ? (
-          // Utilizatorul este logat: afișează butonul Deconectare
-          <motion.button
-            whileHover={{ scale: 1.05, boxShadow: "0px 0px 12px rgba(0,0,0,0.2)" }} // Ajustează boxShadow dacă este necesar
-            whileTap={{ scale: 0.97 }}
-            onClick={handleLogout}
-            className="px-5 py-2 rounded-lg bg-[#1B263B] text-white font-semibold transition duration-300 hover:bg-[#222]"
-          >
-            Deconectare
-          </motion.button>
+          <>
+            <Link to="/dashboard">
+              <motion.button
+                whileHover={{ scale: 1.05, boxShadow: "0px 0px 12px rgba(0,0,0,0.2)" }}
+                whileTap={{ scale: 0.97 }}
+                className="px-5 py-2 rounded-lg bg-[#1B263B] text-white font-semibold transition duration-300 hover:bg-[#003f7a]"
+              >
+                Profil
+              </motion.button>
+            </Link>
+            <motion.button
+              whileHover={{ scale: 1.05, boxShadow: "0px 0px 12px rgba(0,0,0,0.2)" }}
+              whileTap={{ scale: 0.97 }}
+              onClick={handleLogout}
+              className="px-5 py-2 rounded-lg bg-[#1B263B] text-white font-semibold transition duration-300 hover:bg-[#003f7a]"
+            >
+              Deconectare
+            </motion.button>
+          </>
         ) : (
-          // Utilizatorul nu este logat: afișează butoanele Autentificare și Înregistrare
           <>
             <Link to="/login">
               <motion.button

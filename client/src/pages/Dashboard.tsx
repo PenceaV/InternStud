@@ -4,7 +4,7 @@ import { collection, query, getDocs, doc, getDoc, deleteDoc, where, updateDoc, a
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { FaUserGraduate, FaHome, FaBriefcase, FaUserCircle, FaPowerOff, FaFilter, FaBuilding, FaPlus, FaEnvelope, FaGraduationCap, FaTools } from 'react-icons/fa';
 import { signOut } from 'firebase/auth';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import LoadingSpinner from '../components/LoadingSpinner';
 import CreateAnnouncementForm from '../components/CreateAnnouncementForm';
 import { Timestamp } from 'firebase/firestore';
@@ -572,7 +572,9 @@ const Dashboard: React.FC = () => {
       <div className="w-64 bg-[#F5F6FA] text-black p-0 flex flex-col shadow-lg fixed left-0 top-0 bottom-0 overflow-y-auto z-40">
         {/* LOGO + NOTIFICARE SUS */}
         <div className="flex flex-row items-center justify-between w-full px-6 pt-6 pb-2" style={{minHeight: '64px'}}>
-          <img src={logoCropped} alt="Logo" className="w-40 h-12 object-contain" />
+        <Link to="/" className="hover:opacity-80 transition-opacity duration-300">
+          <img src={logoCropped} alt="InternStud Logo" className="h-8 w-auto" />
+        </Link>
           {user && <NotificationsDropdown userId={user.uid} onNotificationClick={handleNotificationClick} />}
         </div>
         {/* AVATAR + NUME */}

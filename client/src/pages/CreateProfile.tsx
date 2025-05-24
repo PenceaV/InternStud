@@ -134,7 +134,7 @@ const CreateProfile: React.FC = () => {
       <div>
         <Navbar />
         {userType === 'student' && <StudentProfileForm userType={userType} />}
-        {userType === 'company' && <CompanyProfileForm userType={userType} />}
+        {userType === 'company' && <CompanyProfileForm />}
       </div>
     );
   }

@@ -3,14 +3,13 @@ import { motion } from 'framer-motion';
 import { auth, db } from '../firebaseConfig';
 import { doc, updateDoc } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
-import { FaBuilding, FaCamera, FaLink } from 'react-icons/fa'; // Add Building and Camera back
+import { FaCamera, FaLink } from 'react-icons/fa'; // Add Building and Camera back
 
 interface CompanyProfileFormProps {
-  userType: 'student' | 'company';
   onProfileUpdated?: () => void;
 }
 
-const CompanyProfileForm: React.FC<CompanyProfileFormProps> = ({ userType, onProfileUpdated }) => {
+const CompanyProfileForm: React.FC<CompanyProfileFormProps> = ({ onProfileUpdated }) => {
   // State for LinkedIn-like fields
   const [companyName, setCompanyName] = useState('');
   // Removed linkedinUrl state
