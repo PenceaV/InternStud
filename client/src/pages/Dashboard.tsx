@@ -94,6 +94,9 @@ const Dashboard: React.FC = () => {
   const [showStudentProfileModal, setShowStudentProfileModal] = useState(false);
   const [selectedStudentProfile, setSelectedStudentProfile] = useState<Application['studentData'] | null>(null);
 
+  // State to store logged-in student's applications
+  const [studentApplications, setStudentApplications] = useState<Application[]>([]);
+
   // Handle user logout
   const handleLogout = async () => {
     try {
@@ -141,21 +144,36 @@ const Dashboard: React.FC = () => {
           console.log('Dashboard: User type unknown.');
           setUserName({}); // Set to empty object for unknown type initially
         }
+
+        // Fetch announcements
+        const q = query(collection(db, 'announcements'));
+        const querySnapshot = await getDocs(q);
+        console.log('Dashboard: Announcements query snapshot fetched.', querySnapshot.size, 'documents.');
+
+        const announcementsList: Announcement[] = [];
+        querySnapshot.forEach((doc) => {
+          // Map Firestore data to Announcement interface
+          announcementsList.push({ ...doc.data() as Announcement, id: doc.id });
+        });
+        setAnnouncements(announcementsList);
+
+        // Fetch student's applications if user is a student
+        if (userData.userType === 'student') {
+          const studentApplicationsQuery = query(
+            collection(db, 'applications'),
+            where('studentId', '==', user.uid)
+          );
+          const studentApplicationsSnapshot = await getDocs(studentApplicationsQuery);
+          const studentApplicationsList: Application[] = [];
+          studentApplicationsSnapshot.forEach((doc) => {
+            studentApplicationsList.push({ ...doc.data() as Application, id: doc.id } as Application);
+          });
+          setStudentApplications(studentApplicationsList);
+        }
+
       } else {
         console.log('Dashboard: User document does not exist for auth user.', user.uid);
       }
-
-      // Fetch announcements
-      const q = query(collection(db, 'announcements'));
-      const querySnapshot = await getDocs(q);
-      console.log('Dashboard: Announcements query snapshot fetched.', querySnapshot.size, 'documents.');
-
-      const announcementsList: Announcement[] = [];
-      querySnapshot.forEach((doc) => {
-        // Map Firestore data to Announcement interface
-        announcementsList.push({ ...doc.data() as Announcement, id: doc.id });
-      });
-      setAnnouncements(announcementsList);
 
     } catch (err: any) {
       console.error("Error fetching data:", err);
@@ -850,12 +868,18 @@ const Dashboard: React.FC = () => {
                           </button>
 
                           {/* Apply Button (only for students and if not already applied - basic check) */}
-                          {userType === 'student' && !applications.some(app => app.jobId === announcement.id && app.studentId === user?.uid) && (
+                          {userType === 'student' && (
                              <button
-                               className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm"
+                               className={
+                                 `px-4 py-2 text-white rounded-md transition-colors text-sm ` +
+                                 (studentApplications.some(app => app.jobId === announcement.id) // Check if student has applied
+                                   ? 'bg-gray-500 cursor-not-allowed' // Applied state classes
+                                   : 'bg-green-600 hover:bg-green-700') // Default state classes
+                               }
                                onClick={() => handleApplyFromCard(announcement.id, announcement.companyId)}
+                               disabled={studentApplications.some(app => app.jobId === announcement.id)} // Disable if applied
                              >
-                               Aplică
+                               {studentApplications.some(app => app.jobId === announcement.id) ? 'Ai aplicat' : 'Aplică'} {/* Change button text */}
                              </button>
                           )}
 
