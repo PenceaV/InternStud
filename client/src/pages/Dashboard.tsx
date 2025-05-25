@@ -27,6 +27,8 @@ interface Announcement {
   companyId: string;
   createdAt: Timestamp;
   status?: 'pending' | 'approved' | 'rejected'; // Add the status field
+  isRemote: boolean;
+  companyLogoUrl?: string; // Add this field for company logo URL
 }
 
 interface Application {
@@ -146,15 +148,42 @@ const Dashboard: React.FC = () => {
         }
 
         // Fetch announcements
-        const q = query(collection(db, 'announcements'));
-        const querySnapshot = await getDocs(q);
+        // Modify the query based on user type
+        let announcementsQuery = query(collection(db, 'announcements'));
+
+        if (userData.userType === 'company') {
+          // Companies only see their own announcements
+          announcementsQuery = query(collection(db, 'announcements'), where('companyId', '==', user.uid));
+        } else if (userData.userType === 'student') {
+          // Students see all announcements (filtering for approved is done in rendering)
+          // No additional 'where' clause needed here for student view to see all initially
+          // The existing rendering logic already filters for approved status.
+        }
+
+        const querySnapshot = await getDocs(announcementsQuery);
         console.log('Dashboard: Announcements query snapshot fetched.', querySnapshot.size, 'documents.');
 
         const announcementsList: Announcement[] = [];
-        querySnapshot.forEach((doc) => {
-          // Map Firestore data to Announcement interface
-          announcementsList.push({ ...doc.data() as Announcement, id: doc.id });
-        });
+        for (const docSnapshot of querySnapshot.docs) { // Use for...of to allow await inside loop
+          const announcementData = docSnapshot.data() as Announcement;
+          const announcementWithId: Announcement = { ...announcementData, id: docSnapshot.id };
+
+          // Fetch company data to get the logo URL
+          try {
+            const companyDocRef = doc(db, 'users', announcementData.companyId);
+            const companyDocSnap = await getDoc(companyDocRef);
+            if (companyDocSnap.exists()) {
+              const companyData = companyDocSnap.data();
+              announcementWithId.companyLogoUrl = companyData.profileImageUrl || undefined; // Assuming profileImageUrl is used for company logo
+            } else {
+              console.warn(`Company document not found for ID: ${announcementData.companyId}`);
+            }
+          } catch (companyFetchErr) {
+            console.error("Error fetching company data for logo:", companyFetchErr);
+          }
+
+          announcementsList.push(announcementWithId);
+        }
         setAnnouncements(announcementsList);
 
         // Fetch student's applications if user is a student
@@ -628,11 +657,15 @@ const Dashboard: React.FC = () => {
         {/* BUTOANE JOS */}
         <div className="border-t border-gray-300 pt-6 pb-4 px-6 flex flex-col gap-2">
           <a href="#" className="flex items-center gap-3 py-3 px-4 rounded-xl font-bold text-black text-base transition duration-200 hover:bg-[#E3EAFD] hover:text-black" onClick={e => { e.preventDefault(); navigate('/'); }}>
-            <FaHome className="text-xl" />
+            <div className="w-6 flex justify-center items-center">
+              <FaHome className="text-xl" />
+            </div>
             <span>Acasă</span>
           </a>
-          <a href="#" onClick={handleLogout} className="flex items-center gap-3 py-2 px-2 rounded-xl font-bold text-black text-base transition duration-200 hover:bg-[#F2542D] hover:text-white">
-            <FaPowerOff className="text-xl" />
+          <a href="#" onClick={handleLogout} className="flex items-center gap-3 py-3 px-4 rounded-xl font-bold text-black text-base transition duration-200 hover:bg-[#F2542D] hover:text-white">
+            <div className="w-6 flex justify-center items-center">
+              <FaPowerOff className="text-xl" />
+            </div>
             <span>Deconectează-te</span>
           </a>
         </div>
@@ -774,142 +807,95 @@ const Dashboard: React.FC = () => {
 
               {/* Announcement Cards or No Announcements Message */}
               {/* Filter announcements based on search term and selected company */}
-              {announcements.filter(announcement => {
-                const matchesSearch = announcement.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                      announcement.companyName.toLowerCase().includes(searchTerm.toLowerCase());
-                const matchesCompany = activeCompanyFilter === 'Toate Companiile' || announcement.companyName === activeCompanyFilter;
+              {announcements
+                .filter(announcement => {
+                  // Filter announcements based on search term and selected company
+                  const matchesSearch = announcement.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    announcement.companyName.toLowerCase().includes(searchTerm.toLowerCase());
+                  const matchesCompany = activeCompanyFilter === 'Toate Companiile' || announcement.companyName === activeCompanyFilter;
 
-                // Determine if the logged-in user is the company that posted this announcement
-                const isOwnAnnouncement = user && user.uid === announcement.companyId;
-
-                // Filter logic:
-                // If it's the company's own announcement, include it regardless of status.
-                // If it's NOT the company's own, only include if status is 'approved'.
-                if (isOwnAnnouncement) {
-                  return matchesSearch && matchesCompany;
-                } else {
-                  return matchesSearch && matchesCompany && announcement.status === 'approved';
-                }
-              }).length === 0 && !showCompanyFilterOptions ? (
+                  // Add filtering for students to only show approved announcements
+                  if (userType === 'student') {
+                    return matchesSearch && matchesCompany && announcement.status === 'approved';
+                  } else { // Company users see all their announcements
+                    return matchesSearch && matchesCompany;
+                  }
+                })
+                .length === 0 && !showCompanyFilterOptions ? (
                 <div className="text-center text-gray-600 text-xl mt-10 p-6 bg-white rounded-lg shadow-sm">
                   <p>Momentan nu există anunțuri de joburi disponibile.</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 auto-rows-fr">
                   {/* Map and display filtered announcements */}
-                  {announcements.filter(announcement => {
-                    const matchesSearch = announcement.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                          announcement.companyName.toLowerCase().includes(searchTerm.toLowerCase());
-                    const matchesCompany = activeCompanyFilter === 'Toate Companiile' || announcement.companyName === activeCompanyFilter;
+                  {announcements
+                    .filter(announcement => {
+                      // Filter announcements based on search term and selected company
+                      const matchesSearch = announcement.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        announcement.companyName.toLowerCase().includes(searchTerm.toLowerCase());
+                      const matchesCompany = activeCompanyFilter === 'Toate Companiile' || announcement.companyName === activeCompanyFilter;
 
-                    // Determine if the logged-in user is the company that posted this announcement
-                    const isOwnAnnouncement = user && user.uid === announcement.companyId;
-
-                    // Filter logic (repeated for mapping, ensures consistency):
-                    if (isOwnAnnouncement) {
-                      return matchesSearch && matchesCompany;
-                    } else {
-                      return matchesSearch && matchesCompany && announcement.status === 'approved';
-                    }
-                  }).map((announcement) => (
-                    <div key={announcement.id} className="bg-white p-6 rounded-lg shadow-md flex flex-col"> {/* Changed to flex-col */}
-                      {/* Announcement Title (Centered at the top) */}
-                      <h3 className="text-xl font-semibold text-[#1B263B] mb-4 text-center">{announcement.title}</h3> {/* Centered and added margin-bottom */}
-
-                      {/* Company Icon and Name Area (using flex for horizontal layout) */}
-                      <div className="flex items-start space-x-4">
-                        {/* Larger Company Icon Circle */}
-                        <div className="flex-shrink-0 w-16 h-16 rounded-full bg-[#004080] flex items-center justify-center text-3xl text-white"> {/* Adjusted size and color */}
-                          <FaBuilding />
+                      // Add filtering for students to only show approved announcements
+                      if (userType === 'student') {
+                        return matchesSearch && matchesCompany && announcement.status === 'approved';
+                      } else { // Company users see all their announcements
+                        return matchesSearch && matchesCompany;
+                      }
+                    })
+                    .map((announcement) => (
+                      <div key={announcement.id} className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition duration-300 ease-in-out border border-gray-200 mb-4">
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="text-xl font-semibold text-[#1B263B]">{announcement.title}</h3>
+                          {/* Display status based on user type */}
+                          {userType === 'company' && (announcement.status === 'approved' ? (
+                            <span className="px-3 py-1 text-sm font-semibold text-green-800 bg-green-100 rounded-full">Aprobat</span>
+                          ) : announcement.status === 'rejected' ? (
+                            <span className="px-3 py-1 text-sm font-semibold text-red-800 bg-red-100 rounded-full">Respins</span>
+                          ) : (
+                            <span className="px-3 py-1 text-sm font-semibold text-yellow-800 bg-yellow-100 rounded-full">În așteptare</span>
+                          ))}
+                           {userType === 'student' && studentApplications.some(app => app.jobId === announcement.id) && (
+                              <span className="px-3 py-1 text-sm font-semibold text-blue-800 bg-blue-100 rounded-full">Aplicat</span>
+                           )}
                         </div>
-                        {/* Company Name and potentially Status */}
-                        <div className="flex flex-col">
-                           <p className="text-xl font-bold text-[#1B263B] leading-tight">{announcement.companyName}</p> {/* Company name larger and bold */}
+                        
+                        <div className="mb-4 text-gray-600 flex items-center">
+                          {/* Company Logo */}
+                          {announcement.companyLogoUrl ? (
+                            <img src={announcement.companyLogoUrl} alt={`${announcement.companyName} Logo`} className="w-10 h-10 rounded-full mr-4" />
+                          ) : (
+                            <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center mr-4 text-gray-600 text-xl">
+                              <FaBuilding />
+                            </div>
+                          )}
+                          <div>
+                            <p className="text-lg font-medium text-[#1B263B]">{announcement.companyName}</p>
+                            <p className="text-sm text-gray-600">{announcement.description.substring(0, 150)}...</p> {/* Show snippet */}
+                          </div>
+                        </div>
 
-                           {/* Status Indicator (only for the company that posted the announcement) */}
-                           {user && user.uid === announcement.companyId && announcement.status && (
-                             <div className="flex items-center mt-1">
-                               <span className={
-                                 `w-3 h-3 rounded-full mr-2 ` +
-                                 (announcement.status === 'approved' ? 'bg-green-600' :
-                                  announcement.status === 'rejected' ? 'text-red-600 bg-red-600' : 'bg-gray-500') // Added bg-red-600 for consistency
-                               }></span>
-                               <span className={
-                                 `text-sm font-semibold ` +
-                                 (announcement.status === 'approved' ? 'text-green-600' :
-                                  announcement.status === 'rejected' ? 'text-red-600' : 'text-gray-500')
-                               }>
-                                 {announcement.status === 'approved' && 'Postat'}
-                                 {announcement.status === 'pending' && 'Asteapta aprobarea'}
-                                 {announcement.status === 'rejected' && 'Respins'}
-                               </span>
-                             </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-y-2 mb-4 text-sm text-gray-700">
+                          <p><strong>Locație:</strong> {announcement.location}{announcement.isRemote && " (Remote)"}</p>{/* Add Remote indicator here */}
+                          <p><strong>Tip job:</strong> {announcement.jobType}</p>
+                          {announcement.salary && <p><strong>Salariu:</strong> RON {announcement.salary}</p>}
+                          <p><strong>Data limită aplicare:</strong> {formatDate(announcement.applicationDeadline)}</p>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2">
+                          <button onClick={() => handleViewDetails(announcement)} className="px-4 py-2 bg-[#0056a0] text-white rounded-md hover:bg-[#003f7a] transition-colors text-sm">Detalii</button>
+                          {userType === 'company' && (
+                             <>
+                               <button onClick={() => handleEditAnnouncement(announcement)} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm">Editează</button>
+                               <button onClick={() => handleDeleteAnnouncement(announcement.id)} className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-sm">Șterge</button>
+                             </>
+                          )}
+                           {userType === 'student' && !studentApplications.some(app => app.jobId === announcement.id) && (
+                              <button onClick={() => handleApplyFromCard(announcement.id, announcement.companyId)} className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm">Aplică</button>
                            )}
 
                         </div>
                       </div>
-
-                      {/* Announcement Details Area (Remaining space) */}
-                      <div className="flex-1 mt-4 text-sm text-gray-700">
-                        {/* Display Location, Job Type, Salary */}
-                        {announcement.location && <p className="mb-1"><strong>Locație:</strong> {announcement.location}</p>}
-                        {announcement.jobType && <p className="mb-1"><strong>Tip job:</strong> {announcement.jobType.charAt(0).toUpperCase() + announcement.jobType.slice(1)}</p>}
-                        {announcement.salary && <p className="mb-1"><strong>Salariu:</strong> {announcement.salary}</p>}
-
-                        {/* Display application deadline */}
-                        <p className="text-gray-600 text-xs mt-2">Data limită aplicare: {formatDate(announcement.applicationDeadline)}</p>
-                        {/* Add more announcement details */}
-
-                        {/* Details Button */}
-                        <div className="mt-4 flex space-x-2"> {/* Added flex and space-x-2 for buttons */}
-                          <button
-                            className="px-4 py-2 bg-[#0056a0] text-white rounded-md hover:bg-[#003f7a] transition-colors text-sm"
-                            onClick={() => handleViewDetails(announcement)}
-                          >
-                            Detalii
-                          </button>
-
-                          {/* Apply Button (only for students and if not already applied - basic check) */}
-                          {userType === 'student' && (
-                             <button
-                               className={
-                                 `px-4 py-2 text-white rounded-md transition-colors text-sm ` +
-                                 (studentApplications.some(app => app.jobId === announcement.id) // Check if student has applied
-                                   ? 'bg-gray-500 cursor-not-allowed' // Applied state classes
-                                   : 'bg-green-600 hover:bg-green-700') // Default state classes
-                               }
-                               onClick={() => handleApplyFromCard(announcement.id, announcement.companyId)}
-                               disabled={studentApplications.some(app => app.jobId === announcement.id)} // Disable if applied
-                             >
-                               {studentApplications.some(app => app.jobId === announcement.id) ? 'Ai aplicat' : 'Aplică'} {/* Change button text */}
-                             </button>
-                          )}
-
-                          {/* Edit and Delete Buttons (only for the posting company) */}
-                          {user && user.uid === announcement.companyId && (
-                            <div className="flex space-x-2"> {/* Wrapped in a div to maintain spacing if Apply button is not present */}
-                              {/* Edit Button */}
-                              <button
-                                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm"
-                                onClick={() => handleEditAnnouncement(announcement)}
-                              >
-                                Editează
-                              </button>
-                              {/* Delete Button */}
-                              <button
-                                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-sm"
-                                onClick={() => handleDeleteAnnouncement(announcement.id)}
-                              >
-                                Șterge
-                              </button>
-                            </div>
-                          )}
-
-                        </div>
-
-                      </div>
-                    </div>
-                  ))}
+                    ))}
                 </div>
               )}
             </>
@@ -942,53 +928,80 @@ const Dashboard: React.FC = () => {
 
           {/* Student Profile Modal */}
           {showStudentProfileModal && selectedStudentProfile && (
-            <div className="fixed inset-0 overflow-y-auto h-full w-full z-50 flex justify-center items-center backdrop-filter backdrop-blur-lg">
-              <div className="relative p-5 border w-96 shadow-lg rounded-md bg-white">
-                <div className="mt-3 text-center">
-                  <h3 className="text-lg leading-6 font-medium text-gray-900">Profil Student</h3>
-                  <div className="mt-2 px-7 py-3 text-left text-sm text-gray-700">
-                    {selectedStudentProfile.firstName && selectedStudentProfile.lastName && (
-                      <p className="mb-2"><strong>Nume:</strong> {selectedStudentProfile.lastName} {selectedStudentProfile.firstName}</p>
-                    )}
-                    {selectedStudentProfile.email && (
-                       <p className="mb-2 flex items-center"><FaEnvelope className="mr-2 text-blue-500" /><strong>Email: </strong>{selectedStudentProfile.email}</p>
-                    )}
-                    
-                    {selectedStudentProfile.education && selectedStudentProfile.education.length > 0 && (
-                      <div className="mt-4">
-                        <p className="font-semibold text-gray-900 flex items-center"><FaGraduationCap className="mr-2 text-green-500" />Educație:</p>
-                        <ul className="list-disc list-inside ml-4">
-                          {selectedStudentProfile.education.map((edu, index) => (
-                            <li key={index} className="mb-1">
-                              {edu.university} - {edu.specialization} ({edu.startDate.toDate().toLocaleDateString()} - {edu.endDate.toDate().toLocaleDateString()})
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
+            <div className="fixed inset-0 overflow-y-auto h-full w-full z-50 flex justify-center items-center backdrop-filter backdrop-blur-lg bg-black bg-opacity-50 p-4"> {/* Added backdrop and padding */}
+              <div className="relative bg-white rounded-lg shadow-xl max-w-xl w-full mx-auto p-6 space-y-6"> {/* Improved styling and spacing */}
+                {/* Close Button */}
+                <button
+                  className="absolute top-3 right-3 text-gray-500 hover:text-gray-700 z-10"
+                  onClick={handleCloseStudentProfileModal}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
 
-                     {selectedStudentProfile.experience && selectedStudentProfile.experience.length > 0 && (
-                      <div className="mt-4">
-                        <p className="font-semibold text-gray-900 flex items-center"><FaTools className="mr-2 text-purple-500" />Experiență:</p>
-                        <ul className="list-disc list-inside ml-4">
-                          {selectedStudentProfile.experience.map((exp, index) => (
-                            <li key={index} className="mb-1">
-                              {exp.title} la {exp.company} ({exp.startDate.toDate().toLocaleDateString()} - {exp.isPresent ? 'Prezent' : exp.endDate.toDate().toLocaleDateString()})
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
+                {/* Header with Student Name */}
+                <div className="text-center border-b pb-4 mb-4">
+                  <h3 className="text-2xl font-bold text-[#1B263B]">
+                    {selectedStudentProfile.firstName && selectedStudentProfile.lastName
+                      ? `${selectedStudentProfile.lastName} ${selectedStudentProfile.firstName}`
+                      : 'Profil Student'}
+                  </h3>
+                </div>
 
-                     {selectedStudentProfile.skills && selectedStudentProfile.skills.length > 0 && (
-                      <div className="mt-4">
-                         <p className="font-semibold text-gray-900">Skill-uri:</p>
-                         <p>{selectedStudentProfile.skills.join(', ')}</p>
-                      </div>
-                     )}
-
+                <div className="space-y-6"> {/* Increased space between sections */}
+                  {/* Contact Info Section */}
+                  <div className="space-y-2">
+                     <p className="font-bold text-gray-900 flex items-center text-lg"><FaEnvelope className="mr-2 text-blue-500" />Contact</p>
+                      {selectedStudentProfile.email && (
+                         <p className="text-gray-700"><strong>Email:</strong> {selectedStudentProfile.email}</p>
+                      )}
+                      {/* Add other contact info if available, e.g., phone */}
                   </div>
-                  <div className="items-center px-4 py-3">
+
+                  {/* Education Section */}
+                  {selectedStudentProfile.education && selectedStudentProfile.education.length > 0 && (
+                    <div className="space-y-3 border-t pt-6">
+                      <p className="font-bold text-gray-900 flex items-center text-lg"><FaGraduationCap className="mr-2 text-green-500" />Educație</p>
+                      {selectedStudentProfile.education.map((edu, index) => (
+                        <div key={index} className="bg-gray-100 p-4 rounded-md shadow-sm text-sm space-y-1">
+                          <p className="font-semibold text-gray-800">{edu.university}</p>
+                          <p className="text-gray-700">{edu.specialization}</p>
+                          <p className="text-gray-600 text-xs">{edu.startDate.toDate().toLocaleDateString()} - {edu.endDate.toDate().toLocaleDateString()}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                   {/* Experience Section */}
+                   {selectedStudentProfile.experience && selectedStudentProfile.experience.length > 0 && (
+                    <div className="space-y-3 border-t pt-6">
+                      <p className="font-bold text-gray-900 flex items-center text-lg"><FaBriefcase className="mr-2 text-purple-500" />Experiență</p>
+                      {selectedStudentProfile.experience.map((exp, index) => (
+                        <div key={index} className="bg-gray-100 p-4 rounded-md shadow-sm text-sm space-y-1">
+                          <p className="font-semibold text-gray-800">{exp.title}</p>
+                          <p className="text-gray-700">{exp.company}</p>
+                          <p className="text-gray-600 text-xs">{exp.startDate.toDate().toLocaleDateString()} - {exp.isPresent ? 'Prezent' : exp.endDate.toDate().toLocaleDateString()}</p>
+                        </div>
+                      ))}
+                    </div>
+                   )}
+
+                   {/* Skills Section */}
+                   {selectedStudentProfile.skills && selectedStudentProfile.skills.length > 0 && (selectedStudentProfile.skills[0].trim() !== '') && (
+                    <div className="space-y-3 border-t pt-6">
+                       <p className="font-bold text-gray-900 flex items-center text-lg"><FaTools className="mr-2 text-orange-500" />Skill-uri</p>
+                       <div className="flex flex-wrap gap-2">
+                         {selectedStudentProfile.skills.map((skill, index) => (
+                           <span key={index} className="bg-blue-100 text-blue-800 text-sm font-medium px-3 py-1 rounded-full">{skill}</span>
+                         ))}
+                       </div>
+                    </div>
+                   )}
+
+                </div>
+                 {/* Close Button - Moved outside the main content div */}
+                <div className="items-center px-4 py-3">
                     <button
                       id="close-student-profile-btn"
                       onClick={handleCloseStudentProfileModal}
@@ -997,7 +1010,6 @@ const Dashboard: React.FC = () => {
                       Închide
                     </button>
                   </div>
-                </div>
               </div>
             </div>
           )}

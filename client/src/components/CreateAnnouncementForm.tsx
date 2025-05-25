@@ -19,6 +19,7 @@ interface Announcement {
   description: string;
   location: string;
   jobType: string;
+  isRemote: boolean;
   salary?: string; // Optional
   requirements: string;
   benefits?: string; // Optional
@@ -35,6 +36,7 @@ const CreateAnnouncementForm: React.FC<CreateAnnouncementFormProps> = ({ onAnnou
     description: '',
     location: '',
     jobType: '',
+    isRemote: false,
     salary: '', // Optional
     requirements: '',
     benefits: '', // Optional
@@ -52,10 +54,11 @@ const CreateAnnouncementForm: React.FC<CreateAnnouncementFormProps> = ({ onAnnou
         description: announcementToEdit.description || '',
         location: announcementToEdit.location || '',
         jobType: announcementToEdit.jobType || '',
+        isRemote: announcementToEdit.isRemote || false,
         salary: announcementToEdit.salary || '',
         requirements: announcementToEdit.requirements || '',
         benefits: announcementToEdit.benefits || '',
-        applicationDeadline: announcementToEdit.applicationDeadline?.toDate() || null, // Convert Timestamp to Date
+        applicationDeadline: announcementToEdit.applicationDeadline?.toDate() || null,
       });
     } else {
       // Clear form if no announcementToEdit (for new announcements)
@@ -64,6 +67,7 @@ const CreateAnnouncementForm: React.FC<CreateAnnouncementFormProps> = ({ onAnnou
         description: '',
         location: '',
         jobType: '',
+        isRemote: false,
         salary: '',
         requirements: '',
         benefits: '',
@@ -113,10 +117,11 @@ const CreateAnnouncementForm: React.FC<CreateAnnouncementFormProps> = ({ onAnnou
         description: formData.description,
         location: formData.location,
         jobType: formData.jobType,
+        isRemote: formData.isRemote,
         salary: formData.salary,
         requirements: formData.requirements,
         benefits: formData.benefits,
-        applicationDeadline: Timestamp.fromDate(formData.applicationDeadline!), // Convert Date to Timestamp (non-null assertion after validation)
+        applicationDeadline: Timestamp.fromDate(formData.applicationDeadline!),
       };
       
       // Include companyId and companyName only if creating a new announcement
@@ -158,6 +163,7 @@ const CreateAnnouncementForm: React.FC<CreateAnnouncementFormProps> = ({ onAnnou
           description: '',
           location: '',
           jobType: '',
+          isRemote: false,
           salary: '',
           requirements: '',
           benefits: '',
@@ -292,6 +298,20 @@ const CreateAnnouncementForm: React.FC<CreateAnnouncementFormProps> = ({ onAnnou
             placeholderText="dd/mm/yyyy"
             required
           />
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <input
+            type="checkbox"
+            name="isRemote"
+            id="isRemote"
+            checked={formData.isRemote}
+            onChange={(e) => setFormData(prev => ({ ...prev, isRemote: e.target.checked }))}
+            className="h-4 w-4 text-[#0056a0] focus:ring-[#0056a0] border-gray-300 rounded"
+          />
+          <label htmlFor="isRemote" className="block text-sm font-medium text-gray-700">
+            Poziție Remote
+          </label>
         </div>
 
         <div className="flex justify-end pt-4">

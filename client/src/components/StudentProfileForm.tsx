@@ -52,6 +52,7 @@ const StudentProfileForm: React.FC<StudentProfileFormProps> = ({ onProfileUpdate
   const [linkedin, setLinkedin] = useState('');
   const [github, setGithub] = useState('');
   const [website, setWebsite] = useState('');
+  const [workPreference, setWorkPreference] = useState<'remote' | 'onsite' | 'hybrid'>('onsite'); // Add this field
 
   // Fetch user data on component mount to pre-fill form if data exists
   useEffect(() => {
@@ -69,6 +70,7 @@ const StudentProfileForm: React.FC<StudentProfileFormProps> = ({ onProfileUpdate
           setLinkedin(data.linkedin || '');
           setGithub(data.github || '');
           setWebsite(data.website || '');
+          setWorkPreference(data.workPreference || 'onsite'); // Add this field
           // Set initial first and last name from fetched data
           setFirstName(data.firstName || '');
           setLastName(data.lastName || '');
@@ -195,6 +197,7 @@ const StudentProfileForm: React.FC<StudentProfileFormProps> = ({ onProfileUpdate
         linkedin: linkedin,
         github: github,
         website: website,
+        workPreference: workPreference, // Add this field
         profileCompleted: true,
       });
 
@@ -531,6 +534,29 @@ const StudentProfileForm: React.FC<StudentProfileFormProps> = ({ onProfileUpdate
                 </div>
                 <p className="mt-2 text-xs text-gray-500">Fișiere PDF, DOC, și DOCX suportate.</p>
              </div>
+          </div>
+
+          {/* Add this section after the skills section */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-[#1B263B] flex items-center">
+              <FaBriefcase className="mr-2" />
+              Preferințe de Lucru
+            </h3>
+            
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Preferință de Lucru
+              </label>
+              <select
+                value={workPreference}
+                onChange={(e) => setWorkPreference(e.target.value as 'remote' | 'onsite' | 'hybrid')}
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-[#0056a0] focus:border-[#0056a0] bg-white text-gray-900"
+              >
+                <option value="onsite">On-site</option>
+                <option value="remote">Remote</option>
+                <option value="hybrid">Hybrid</option>
+              </select>
+            </div>
           </div>
 
           {/* Submit Button */}
