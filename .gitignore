@@ -1,3 +1,7 @@
 node_modules/
 dist/
 .env
+# Prevent Firebase service account or other secrets from being committed
+server/*.service-account.json
+server/firebase-service-account.json
+server/internstud0411-firebase-adminsdk-fbsvc-1833350762.json

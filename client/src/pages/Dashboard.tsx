@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db, auth } from '../firebaseConfig';
-import { collection, query, getDocs, doc, getDoc, deleteDoc, where, updateDoc, addDoc } from 'firebase/firestore';
+import { collection, query, getDocs, doc, getDoc, deleteDoc, where, updateDoc, addDoc, writeBatch } from 'firebase/firestore';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { FaUserGraduate, FaHome, FaBriefcase, FaUserCircle, FaPowerOff, FaFilter, FaBuilding, FaPlus, FaEnvelope, FaGraduationCap, FaTools } from 'react-icons/fa';
 import { signOut } from 'firebase/auth';
@@ -12,6 +12,8 @@ import AnnouncementDetailsModal from '../components/AnnouncementDetailsModal';
 import ProfileView from '../components/ProfileView';
 import logoCropped from '/logo-cropped.svg';
 import NotificationsDropdown from '../components/NotificationsDropdown';
+import InterviewSimulator from '../components/InterviewSimulator';
+import CompanyReviews from '../components/CompanyReviews';
 
 interface Announcement {
   id: string;
@@ -80,7 +82,7 @@ const Dashboard: React.FC = () => {
   // State for the active filter (company name)
   const [activeCompanyFilter, setActiveCompanyFilter] = useState('Toate Companiile');
 
-  const [dashboardContent, setDashboardContent] = useState<'announcementsList' | 'createAnnouncement' | 'profile' | 'applications'>('announcementsList');
+  const [dashboardContent, setDashboardContent] = useState<'announcementsList' | 'createAnnouncement' | 'profile' | 'applications' | 'interviewSimulator' | 'communityReviews'>('announcementsList');
   const [applications, setApplications] = useState<Application[]>([]);
   const [loadingApplications, setLoadingApplications] = useState(false);
 
@@ -98,6 +100,9 @@ const Dashboard: React.FC = () => {
 
   // State to store logged-in student's applications
   const [studentApplications, setStudentApplications] = useState<Application[]>([]);
+
+  // New state to store the job ID for the interview simulator
+  const [selectedInterviewJobId, setSelectedInterviewJobId] = useState<string | null>(null);
 
   // Handle user logout
   const handleLogout = async () => {
@@ -495,6 +500,61 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  // Funcție pentru a șterge o aplicație individuală
+  const handleDeleteApplication = async (applicationId: string) => {
+    if (!user || userType !== 'company') return;
+
+    try {
+      // Optional: Add a confirmation dialog before deleting
+      if (window.confirm('Ești sigur că vrei să ștergi această aplicație?')) {
+        const applicationRef = doc(db, 'applications', applicationId);
+        await deleteDoc(applicationRef);
+        console.log('Application deleted successfully.');
+
+        // Remove the deleted application from the state
+        setApplications(prevApplications => prevApplications.filter(app => app.id !== applicationId));
+      }
+    } catch (err: any) {
+      console.error("Error deleting application:", err);
+      setError('Failed to delete application: ' + err.message);
+    }
+  };
+
+  // Funcție pentru a șterge toate aplicațiile pentru compania curentă
+  const handleDeleteAllApplications = async () => {
+    if (!user || userType !== 'company') return;
+
+    // Optional: Add a confirmation dialog before deleting
+    if (window.confirm('Ești sigur că vrei să ștergi TOATE aplicațiile primite?')) {
+      setLoadingApplications(true);
+      try {
+        const q = query(
+          collection(db, 'applications'),
+          where('companyId', '==', user.uid)
+        );
+        const querySnapshot = await getDocs(q);
+
+        const batch = writeBatch(db);
+
+        querySnapshot.docs.forEach((doc) => {
+          batch.delete(doc.ref);
+        });
+
+        await batch.commit();
+        console.log('All applications deleted successfully.');
+
+        // Clear the applications state
+        setApplications([]);
+
+      } catch (err: any) {
+        console.error("Error deleting all applications:", err);
+        setError('Failed to delete all applications: ' + err.message);
+      } finally {
+        setLoadingApplications(false);
+      }
+    }
+  };
+
   useEffect(() => {
     console.log('Dashboard useEffect running. user:', user, 'loadingAuth:', loadingAuth);
     fetchUserDataAndAnnouncements();
@@ -637,6 +697,18 @@ const Dashboard: React.FC = () => {
                 <FaBriefcase className={`text-xl ${dashboardContent === 'announcementsList' ? 'text-white' : 'text-black'}`} />
                 <span>{userType === 'student' ? 'Anunțuri de Joburi' : 'Anunțurile Mele'}</span>
               </a>
+              {userType === 'student' && (
+                 <a href="#" className={`flex items-center gap-3 py-3 px-4 rounded-xl font-bold text-base transition duration-200 ${dashboardContent === 'interviewSimulator' ? 'bg-[#2561A9] text-white' : 'text-black hover:bg-[#E3EAFD] hover:text-black'}`} onClick={e => { e.preventDefault(); setDashboardContent('interviewSimulator'); }}>
+                    <FaTools className={`text-xl ${dashboardContent === 'interviewSimulator' ? 'text-white' : 'text-black'}`} />
+                    <span>Simulator Interviu</span>
+                 </a>
+              )}
+              {userType === 'student' && (
+                <a href="#" className={`flex items-center gap-3 py-3 px-4 rounded-xl font-bold text-base transition duration-200 ${dashboardContent === 'communityReviews' ? 'bg-[#2561A9] text-white' : 'text-black hover:bg-[#E3EAFD] hover:text-black'}`} onClick={e => { e.preventDefault(); setDashboardContent('communityReviews'); }}>
+                  <FaUserCircle className={`text-xl ${dashboardContent === 'communityReviews' ? 'text-white' : 'text-black'}`} />
+                  <span>Comunitate</span>
+                </a>
+              )}
               {userType === 'company' && (
                 <>
                   <a href="#" className={`flex items-center gap-3 py-3 px-4 rounded-xl font-bold text-base transition duration-200 ${dashboardContent === 'createAnnouncement' ? 'bg-[#2561A9] text-white' : 'text-black hover:bg-[#E3EAFD] hover:text-black'}`} onClick={e => { e.preventDefault(); setDashboardContent('createAnnouncement'); }}>
@@ -689,6 +761,15 @@ const Dashboard: React.FC = () => {
                 </div>
               ) : (
                 <div className="space-y-6">
+                  {/* Add Delete All Button */}
+                  <div className="flex justify-end mb-4">
+                    <button
+                      onClick={handleDeleteAllApplications}
+                      className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+                    >
+                      Șterge Tot
+                    </button>
+                  </div>
                   {applications.map((application) => (
                     <div key={application.id} className="bg-white p-6 rounded-lg shadow-md">
                       <div className="flex justify-between items-start mb-4">
@@ -720,7 +801,7 @@ const Dashboard: React.FC = () => {
                       </div>
                       
                       {application.status === 'pending' && (
-                        <div className="flex space-x-4 mt-4">
+                        <div className="flex space-x-4 mt-2">
                           <button
                             onClick={() => handleApplicationStatus(application.id, 'approved')}
                             className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
@@ -735,6 +816,15 @@ const Dashboard: React.FC = () => {
                           </button>
                         </div>
                       )}
+                      {/* Add Delete Button for each application */}
+                      <div className="flex justify-end mt-4">
+                        <button
+                          onClick={() => handleDeleteApplication(application.id)}
+                          className="px-4 py-2 bg-gray-400 text-white rounded-md hover:bg-gray-500 transition-colors text-sm"
+                        >
+                          Șterge
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -806,7 +896,6 @@ const Dashboard: React.FC = () => {
               </div>
 
               {/* Announcement Cards or No Announcements Message */}
-              {/* Filter announcements based on search term and selected company */}
               {announcements
                 .filter(announcement => {
                   // Filter announcements based on search term and selected company
@@ -843,7 +932,7 @@ const Dashboard: React.FC = () => {
                       }
                     })
                     .map((announcement) => (
-                      <div key={announcement.id} className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition duration-300 ease-in-out border border-gray-200 mb-4">
+                      <div key={announcement.id} className="bg-white p-6 rounded-lg shadow-md flex flex-col justify-between leading-normal">
                         <div className="flex items-center justify-between mb-4">
                           <h3 className="text-xl font-semibold text-[#1B263B]">{announcement.title}</h3>
                           {/* Display status based on user type */}
@@ -860,14 +949,7 @@ const Dashboard: React.FC = () => {
                         </div>
                         
                         <div className="mb-4 text-gray-600 flex items-center">
-                          {/* Company Logo */}
-                          {announcement.companyLogoUrl ? (
-                            <img src={announcement.companyLogoUrl} alt={`${announcement.companyName} Logo`} className="w-10 h-10 rounded-full mr-4" />
-                          ) : (
-                            <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center mr-4 text-gray-600 text-xl">
-                              <FaBuilding />
-                            </div>
-                          )}
+                          
                           <div>
                             <p className="text-lg font-medium text-[#1B263B]">{announcement.companyName}</p>
                             <p className="text-sm text-gray-600">{announcement.description.substring(0, 150)}...</p> {/* Show snippet */}
@@ -877,23 +959,93 @@ const Dashboard: React.FC = () => {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-y-2 mb-4 text-sm text-gray-700">
                           <p><strong>Locație:</strong> {announcement.location}{announcement.isRemote && " (Remote)"}</p>{/* Add Remote indicator here */}
                           <p><strong>Tip job:</strong> {announcement.jobType}</p>
-                          {announcement.salary && <p><strong>Salariu:</strong> RON {announcement.salary}</p>}
+                          <p><strong>Salariu:</strong> {announcement.salary ? `RON ${announcement.salary}` : 'Nespecificat'}</p>
                           <p><strong>Data limită aplicare:</strong> {formatDate(announcement.applicationDeadline)}</p>
                         </div>
 
-                        <div className="flex flex-wrap gap-2">
-                          <button onClick={() => handleViewDetails(announcement)} className="px-4 py-2 bg-[#0056a0] text-white rounded-md hover:bg-[#003f7a] transition-colors text-sm">Detalii</button>
-                          {userType === 'company' && (
-                             <>
-                               <button onClick={() => handleEditAnnouncement(announcement)} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm">Editează</button>
-                               <button onClick={() => handleDeleteAnnouncement(announcement.id)} className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-sm">Șterge</button>
-                             </>
-                          )}
-                           {userType === 'student' && !studentApplications.some(app => app.jobId === announcement.id) && (
-                              <button onClick={() => handleApplyFromCard(announcement.id, announcement.companyId)} className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm">Aplică</button>
-                           )}
+                        {/* Student Specific Actions and Status */}
+                        {userType === 'student' ? (
+                          // Find the application for this announcement if it exists
+                          (() => {
+                            const studentApplication = studentApplications.find(app => app.jobId === announcement.id);
 
-                        </div>
+                            return (
+                              <div className="mt-auto pt-4 border-t border-gray-200 flex flex-col items-start space-y-2"> {/* Consistent spacing */}
+                                {/* Display Application Status if applied */}
+                                {studentApplication && (
+                                  <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                                    studentApplication.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                    studentApplication.status === 'approved' ? 'bg-green-100 text-green-800' :
+                                    'bg-red-100 text-red-800'
+                                  }`}>
+                                    {studentApplication.status === 'pending' ? 'În așteptare' :
+                                     studentApplication.status === 'approved' ? 'Acceptat!' : 'Respins'}
+                                  </span>
+                                )}
+
+                                {/* Show Prepare for Interview button only if accepted */}
+                                {studentApplication && studentApplication.status === 'approved' && (
+                                  <button
+                                    onClick={() => {
+                                      setSelectedInterviewJobId(announcement.id);
+                                      setDashboardContent('interviewSimulator');
+                                    }}
+                                    className="px-4 py-2 bg-blue-800 text-white rounded-md hover:bg-blue-900 transition-colors text-base"
+                                  >
+                                    Pregătește-te pentru Interviu
+                                  </button>
+                                )}
+
+                                {/* Student Actions: Apply or View Details */}
+                                <div className="flex space-x-4">
+                                  {/* Show Apply button only if not applied */}
+                                  {!studentApplication && (
+                                    <button
+                                      onClick={() => handleApplyFromCard(announcement.id, announcement.companyId)}
+                                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                                    >
+                                      Aplică
+                                    </button>
+                                  )}
+                                   {/* Show View Details button always for students */}
+                                   <button
+                                    onClick={() => handleViewDetails(announcement)}
+                                    className="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400 transition-colors"
+                                  >
+                                    Vezi Detalii
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })()
+                        ) : userType === 'company' && user && announcement.companyId === user.uid ? (
+                          // Company Actions for their own announcements (Edit, Delete, maybe View Details)
+                          <div className="flex space-x-4 mt-auto pt-4 border-t border-gray-200">
+                             <button
+                               onClick={() => handleEditAnnouncement(announcement)}
+                               className="px-4 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 transition-colors"
+                             >
+                               Editează
+                             </button>
+                             <button
+                               onClick={() => handleDeleteAnnouncement(announcement.id)}
+                               className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+                             >
+                               Șterge
+                             </button>
+                             {/* Optionally add View Details for company's own jobs if different from edit view */}
+                           </div>
+                        ) : ( /* Companies viewing other companies' announcements */
+                          <div className="flex space-x-4 mt-auto pt-4 border-t border-gray-200">
+                             {/* Only show View Details for other companies' announcements */}
+                             <button
+                              onClick={() => handleViewDetails(announcement)}
+                              className="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400 transition-colors"
+                            >
+                             Vezi Detalii
+                           </button>
+                          </div>
+                        )}
                       </div>
                     ))}
                 </div>
@@ -910,7 +1062,14 @@ const Dashboard: React.FC = () => {
             />
           ) : dashboardContent === 'profile' ? ( // Render ProfileView when dashboardContent is 'profile'
             <ProfileView />
-          ) : (
+          ) : dashboardContent === 'interviewSimulator' && userType === 'student' ? ( // Render InterviewSimulator for students
+             <InterviewSimulator selectedJobId={selectedInterviewJobId} />
+          ) : dashboardContent === 'communityReviews' && userType === 'student' ? ( // Render CommunityReviews for students
+             <div>
+               <h1 className="text-2xl font-bold text-[#1B263B] mb-6">Comunitate - Recenzii Companii</h1>
+               <CompanyReviews />
+             </div>
+           ) : (
             <div className="text-center text-gray-600 text-xl mt-10 p-6 bg-white rounded-lg shadow-sm">
               <p>Selectați o opțiune din meniul lateral.</p> {/* Fallback message */}
             </div>
@@ -923,12 +1082,15 @@ const Dashboard: React.FC = () => {
               onClose={handleCloseModal}
               userType={userType}
               userId={user ? user.uid : ''}
+              onApply={userType === 'student' ? handleApplyFromCard : undefined}
+              studentApplicationStatus={userType === 'student' ? studentApplications.find(app => app.jobId === selectedAnnouncement?.id)?.status : undefined}
+              onPrepareForInterviewModal={userType === 'student' && studentApplications.some(app => app.jobId === selectedAnnouncement?.id && app.status === 'approved') ? (jobId: string) => { setSelectedInterviewJobId(jobId); setDashboardContent('interviewSimulator'); setShowAnnouncementModal(false); } : undefined}
             />
           )}
 
           {/* Student Profile Modal */}
           {showStudentProfileModal && selectedStudentProfile && (
-            <div className="fixed inset-0 overflow-y-auto h-full w-full z-50 flex justify-center items-center backdrop-filter backdrop-blur-lg bg-black bg-opacity-50 p-4"> {/* Added backdrop and padding */}
+            <div className="fixed inset-0 overflow-y-auto h-full w-full z-50 flex justify-center items-center backdrop-filter backdrop-blur-lg bg-black bg-opacity-50 p-4" style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}> {/* Added backdrop and padding */}
               <div className="relative bg-white rounded-lg shadow-xl max-w-xl w-full mx-auto p-6 space-y-6"> {/* Improved styling and spacing */}
                 {/* Close Button */}
                 <button

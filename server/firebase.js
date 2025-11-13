@@ -1,25 +1,45 @@
-// Import the functions you need from the SDKs you need
-const { initializeApp } = require("firebase/app");
-const { getAuth } = require("firebase/auth"); // Note: Firebase Auth for Node.js typically uses Admin SDK
-const { getFirestore } = require('firebase/firestore');
-const { getStorage } = require('firebase/storage'); // Note: Firebase Storage for Node.js typically uses Admin SDK
+const admin = require('firebase-admin');
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyAH3vseit9HZWMR95VJizCVDBpBIiU56nU",
-  authDomain: "internstud0411.firebaseapp.com",
-  projectId: "internstud0411",
-  storageBucket: "internstud0411.firebasestorage.app",
-  messagingSenderId: "21270154998",
-  appId: "1:21270154998:web:af3c8c631689d07427a6d7",
-  measurementId: "G-FZFQQT4J88"
-};
+/**
+ * Build an Admin credential from environment variables.
+ *
+ * Supported options:
+ *  - FIREBASE_SERVICE_ACCOUNT: base64 encoded JSON for the service account.
+ *  - GOOGLE_APPLICATION_CREDENTIALS: filesystem path to the JSON file.
+ *
+ * Any other configuration should throw so that missing credentials are
+ * immediately visible during local development or deployment.
+ */
+function resolveCredential() {
+  const base64ServiceAccount = process.env.FIREBASE_SERVICE_ACCOUNT;
+  if (base64ServiceAccount) {
+    try {
+      const decoded = Buffer.from(base64ServiceAccount, 'base64').toString('utf8');
+      const serviceAccount = JSON.parse(decoded);
+      return admin.credential.cert(serviceAccount);
+    } catch (error) {
+      throw new Error(`Failed to decode FIREBASE_SERVICE_ACCOUNT: ${error.message}`);
+    }
+  }
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-const storage = getStorage(app);
+  if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+    return admin.credential.applicationDefault();
+  }
 
-module.exports = { auth, db, storage }; 
+  throw new Error(
+    'Firebase Admin credential not configured. Set FIREBASE_SERVICE_ACCOUNT (base64 JSON) or GOOGLE_APPLICATION_CREDENTIALS (path to JSON file).'
+  );
+}
+
+const storageBucket =
+  process.env.FIREBASE_STORAGE_BUCKET || 'internstud0411.firebasestorage.app';
+
+const app = admin.initializeApp({
+  credential: resolveCredential(),
+  storageBucket,
+});
+
+const db = admin.firestore(app);
+const storage = admin.storage(app);
+
+module.exports = { app, db, storage };

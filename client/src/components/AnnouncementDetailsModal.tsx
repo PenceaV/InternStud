@@ -23,9 +23,13 @@ interface AnnouncementDetailsModalProps {
   onClose: () => void;
   userType: string;
   userId: string;
+  // Add new props for student-specific actions and status
+  onApply?: (announcementId: string, companyId: string) => Promise<void>; // Optional apply handler for students
+  studentApplicationStatus?: 'pending' | 'approved' | 'rejected'; // Optional status for students
+  onPrepareForInterviewModal?: (jobId: string) => void; // Optional handler to prepare for interview
 }
 
-const AnnouncementDetailsModal: React.FC<AnnouncementDetailsModalProps> = ({ announcement, onClose, userType, userId }) => {
+const AnnouncementDetailsModal: React.FC<AnnouncementDetailsModalProps> = ({ announcement, onClose, userType, userId, onApply, studentApplicationStatus, onPrepareForInterviewModal }) => {
   // Function to format Firestore Timestamp to a readable date string
   const formatDate = (timestamp: Timestamp) => {
     const date = timestamp.toDate();
@@ -33,25 +37,36 @@ const AnnouncementDetailsModal: React.FC<AnnouncementDetailsModalProps> = ({ ann
   };
 
   return (
-    <div className="fixed inset-0 overflow-y-auto h-full w-full z-50 flex justify-center items-center backdrop-filter backdrop-blur-lg">
-      <div className="relative p-5 border w-96 shadow-lg rounded-md bg-white">
-        <div className="mt-3 text-center">
-          <h3 className="text-lg leading-6 font-medium text-gray-900">{announcement.title}</h3>
-          <div className="mt-2 px-7 py-3">
-            {/* Display all announcement details here */}
-            <p className="text-sm text-gray-500 text-left mb-2"><strong>Companie:</strong> {announcement.companyName}</p>
-            <p className="text-sm text-gray-500 text-left mb-2"><strong>Descriere:</strong> {announcement.description}</p>
-            <p className="text-sm text-gray-500 text-left mb-2"><strong>Locație:</strong> {announcement.location}</p>
-            <p className="text-sm text-gray-500 text-left mb-2"><strong>Tip job:</strong> {announcement.jobType}</p>
-            {announcement.salary && <p className="text-sm text-gray-500 text-left mb-2"><strong>Salariu:</strong> {announcement.salary}</p>}
-            <p className="text-sm text-gray-500 text-left mb-2"><strong>Cerințe:</strong> {announcement.requirements}</p>
-            {announcement.benefits && <p className="text-sm text-gray-500 text-left mb-2"><strong>Beneficii:</strong> {announcement.benefits}</p>}
-            <p className="text-sm text-gray-500 text-left mb-2"><strong>Data Limită Aplicare:</strong> {formatDate(announcement.applicationDeadline)}</p>
+    <div className="fixed inset-0 overflow-y-auto h-full w-full z-50 flex justify-center items-center backdrop-filter backdrop-blur-lg p-4">
+      <div className="relative p-8 border mt-72 w-[1300px] max-w-[95vw] shadow-lg rounded-md bg-white">
+        <div className="mt-3">
+          <h3 className="text-2xl font-bold text-[#1B263B] mb-6">{announcement.title}</h3>
+          
+          <div className="space-y-4">
+            <p className="text-base text-gray-700"><strong className="text-[#1B263B]">Companie:</strong> {announcement.companyName}</p>
+            <div>
+              <p className="text-base text-gray-700 mb-2"><strong className="text-[#1B263B]">Descriere:</strong></p>
+              <p className="text-base text-gray-700 whitespace-pre-wrap">{announcement.description}</p>
+            </div>
+            <p className="text-base text-gray-700"><strong className="text-[#1B263B]">Locație:</strong> {announcement.location}</p>
+            <p className="text-base text-gray-700"><strong className="text-[#1B263B]">Tip job:</strong> {announcement.jobType}</p>
+            {announcement.salary && <p className="text-base text-gray-700"><strong className="text-[#1B263B]">Salariu:</strong> {announcement.salary}</p>}
+            <div>
+              <p className="text-base text-gray-700 mb-2"><strong className="text-[#1B263B]">Cerințe:</strong></p>
+              <p className="text-base text-gray-700 whitespace-pre-wrap">{announcement.requirements}</p>
+            </div>
+            {announcement.benefits && (
+              <div>
+                <p className="text-base text-gray-700 mb-2"><strong className="text-[#1B263B]">Beneficii:</strong></p>
+                <p className="text-base text-gray-700 whitespace-pre-wrap">{announcement.benefits}</p>
+              </div>
+            )}
+            <p className="text-base text-gray-700"><strong className="text-[#1B263B]">Data Limită Aplicare:</strong> {formatDate(announcement.applicationDeadline)}</p>
 
             {/* Display Status */}
             {userType === 'company' && userId === announcement.companyId && announcement.status && (
               <p className={
-                `text-sm text-left mb-2 font-semibold ` +
+                `text-base font-semibold ` +
                 (announcement.status === 'approved' ? 'text-green-600' :
                  announcement.status === 'rejected' ? 'text-red-600' : 'text-gray-500')
               }>
@@ -61,9 +76,9 @@ const AnnouncementDetailsModal: React.FC<AnnouncementDetailsModalProps> = ({ ann
                 {announcement.status === 'rejected' && ' Respins'}
               </p>
             )}
-
           </div>
-          <div className="items-center px-4 py-3">
+          
+          <div className="mt-8">
             <button
               id="ok-btn"
               onClick={onClose}

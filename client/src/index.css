@@ -101,3 +101,13 @@ input:-webkit-autofill:active {
   border: none !important;
   padding: 0 !important;
 } */
+
+/* Add custom keyframes for faster spin animation */
+@keyframes spin-fast {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.animate-spin-fast {
+  animation: spin-fast 0.8s linear infinite;
+}
